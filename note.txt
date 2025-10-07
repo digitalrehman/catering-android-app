@@ -1,0 +1,54 @@
+app ne kam 40% theek kia hai app again suno ek screen banani hai jiss ka name (Quotation) hoga yeh ek catering app ki booking ka page hai or yeh page ek excel kis traha ka kam karay ga mtlab ke yahan owner table ke cell ki traha ka form banana hai.
+jiss main user fiel ke name.
+Contact no.
+Name.
+Venue.
+DateTime.
+Director.
+no of Guest.
+ab yahan nichay app ne 
+radio type button wala kam kerna hai ek waqt main ek select kerna hai field name.
+F = mean food.
+D = decoration.
+F + D = food + decoration
+F + S
+
+yeh 4 ek row main 
+ab in 4 k nichay radion buton
+per head
+per kg
+
+yeh 2 ek row main
+
+is ke nichay 
+ek table type hoga jiss main 10 row show kerni hai default table cell jis traha ke 10 row or column hongay or ek last main add new row k button hoga jiss se row add hogi click per lakin inke column ke name hai.
+Menu,
+Qty,
+Rate,
+Total
+
+last main total jo k editable hoga jiss app Per KG wali screen dekh saktay ho ke us main pehle ek heading haimain heading PER KG choti table ke liya heading Food Detail or serial line se auto ari hogi minn owner khud value add karay ga or uskay nichay ek or table type Decoration Details yeh upper foo detail ki tarha hongay is main menu, qty, rate, total  bas decoration ki detail add karay ga or yaad rakho dono table ka alag alag total table ke nichay honay aotu table ka sum hoga nichay ara hoga or phir dono table ke last main grad total dono ka.
+or ager owner ne per head button per click kara tu kam is main bhi table wala hoga lakin iska table main total auto ara hoga lakin ager  khud bhi change kerna chay tu ker sakta hai or table ki jo 10 row hai wo app default hide rakho lakin view kernay ka button bhi do lakin per head screen per yeh kerna hai deafult show hoga table lakin hide per hide ho gaye ga or dono table ke last main ek text area type add karo ke per head ki information add karay.
+ or theme main app yeh color ka use karo gay or theme ko attractive banao ke ownwer ko chubay nhi or jo sa se upper filed hai us mian app lable nhi do bas direct cell ki tarha show karo .
+ or top per ek headre bhi ho or left main back ka option or center main name.
+yeh kam app ne mpdern or unique tyle main kerna hai.
+const COLORS = {
+  PRIMARY: '#C62828',
+  PRIMARY_DARK: '#8E0000',
+  ACCENT: '#FFCA28',
+
+  // Neutral Colors
+  WHITE: '#FFFFFF',
+  BLACK: '#000000',
+  GRAY_LIGHT: '#F5F5F5',
+
+  // ✅ Status Colors
+  WARNING: '#F9A825',
+  ERROR: '#D32F2F',
+
+  // 🌈 Theme Gradients (optional)
+  GRADIENT_PRIMARY: ['#C62828', '#8E0000'],
+  GRADIENT_ACCENT: ['#FFCA28', '#FFD54F'],
+};
+
+export default COLORS;

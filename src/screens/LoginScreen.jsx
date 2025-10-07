@@ -85,10 +85,23 @@ const LoginScreen = ({ navigation }) => {
   };
 
   return (
-    <LinearGradient
-      colors={['#f8dfdfff', COLORS.WHITE, '#e4c0c0ff']}
-      style={{ flex: 1 }}
-    >
+    <View style={{ flex: 1 }}>
+      {/* Main Background Gradient */}
+      <LinearGradient
+        colors={['#3B0B0E', '#B83232', '#990303']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      {/* Transparent Overlay for Depth Effect */}
+      <LinearGradient
+        colors={['rgba(0,0,0,0.1)', 'rgba(255,255,255,0.15)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+
       <ScrollView
         style={{ marginTop: 60 }}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 50 }}
@@ -115,6 +128,7 @@ const LoginScreen = ({ navigation }) => {
               alignSelf: 'center',
               resizeMode: 'contain',
               marginBottom: 25,
+              filter: 'invert(1)',
             }}
           />
         </Animated.View>
@@ -196,7 +210,7 @@ const LoginScreen = ({ navigation }) => {
           </Text>
         </Animated.View>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 };
 
@@ -206,12 +220,12 @@ const styles = StyleSheet.create({
   titleText: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#333',
+    color: '#C89647',
     textAlign: 'center',
   },
   subtitleText: {
     fontSize: 15,
-    color: '#555',
+    color: '#C89647',
     marginTop: 5,
     textAlign: 'center',
   },
@@ -262,7 +276,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   text: {
-    color: '#fff',
+    color: '#C89647',
     fontSize: 17,
     fontWeight: '600',
   },
