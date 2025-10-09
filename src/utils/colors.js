@@ -2,6 +2,7 @@ const COLORS = {
   PRIMARY: '#C62828',
   PRIMARY_DARK: '#8E0000',
   ACCENT: '#FFCA28',
+  ACCENT_DARK: '#b38901ff',
 
   // Neutral Colors
   WHITE: '#FFFFFF',
