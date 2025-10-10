@@ -11,8 +11,10 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Icon2 from 'react-native-vector-icons/AntDesign';
 import { useDispatch, useSelector } from 'react-redux';
 import { setLogout } from '../store/authSlice';
+import DashboardTile from '../components/DashboardTile';
 import COLORS from '../utils/colors';
 
 const Dashboard = ({ navigation }) => {
@@ -68,68 +70,85 @@ const Dashboard = ({ navigation }) => {
   };
 
   const announcements = [
-    { id: 1, title: 'Today', confirm: 4, tentative: 2 },
-    { id: 2, title: 'Tomorrow', confirm: 3, tentative: 1 },
-    { id: 3, title: 'This Week', confirm: 7, tentative: 3 },
-    { id: 4, title: 'This Month', confirm: 12, tentative: 5 },
-    { id: 5, title: 'Next Month', confirm: 9, tentative: 4 },
+    { id: 1, title: 'Today Event', confirm: 4, tentative: 2 },
+    { id: 2, title: 'Tomorrow Event', confirm: 3, tentative: 1 },
+    { id: 3, title: 'This Week Event', confirm: 7, tentative: 3 },
+    { id: 4, title: 'This Month Event', confirm: 12, tentative: 5 },
+    { id: 5, title: 'Next Month Event', confirm: 9, tentative: 4 },
   ];
 
   const renderAnnouncementCard = ({ item }) => (
     <LinearGradient
-      colors={[COLORS.ACCENT, COLORS.ACCENT_DARK]}
+      colors={['#B83232', '#990303']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.announcementCard}
     >
-      <Text style={styles.announceTitle}>{item.title}</Text>
+      {/* Title with Event Icon */}
+      <View style={styles.titleRow}>
+        <Icon
+          name="calendar-star"
+          size={22}
+          color="#FFD700"
+          style={{ marginRight: 6 }}
+        />
+        <Text style={styles.announceTitle}>{item.title}</Text>
+      </View>
+
+      {/* Confirm & Tentative Counts */}
       <View style={styles.announceRow}>
-        <View style={styles.miniBox}>
-          <Icon name="check-circle" size={26} color={COLORS.WHITE} />
-          <Text style={styles.miniLabel}>Confirm</Text>
-          <Text style={styles.miniNumber}>{item.confirm}</Text>
+        <View style={styles.circleBox}>
+          <View style={styles.countCircle}>
+            <Text style={styles.circleText}>{item.confirm}</Text>
+          </View>
+          <Text style={styles.circleLabel}>Confirm</Text>
         </View>
 
-        <View style={styles.miniBox}>
-          <Icon name="clock-outline" size={26} color={COLORS.WHITE} />
-          <Text style={styles.miniLabel}>Tentative</Text>
-          <Text style={styles.miniNumber}>{item.tentative}</Text>
+        <View style={styles.circleBox}>
+          <View style={styles.countCircle}>
+            <Text style={styles.circleText}>{item.tentative}</Text>
+          </View>
+          <Text style={styles.circleLabel}>Tentative</Text>
         </View>
       </View>
     </LinearGradient>
   );
 
   return (
-    <LinearGradient colors={COLORS.GRADIENT_PRIMARY} style={styles.container}>
+    <LinearGradient
+      colors={['#B83232', '#4A0000']} // 🔥 Full theme: same as announcement cards
+      style={styles.container}
+    >
       <StatusBar
         translucent
         backgroundColor="transparent"
         barStyle="light-content"
       />
+
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>United Catering</Text>
-            <Text style={styles.subtext}>Welcome back to United Catering</Text>
+            <Text style={styles.subtext}>Delivering Taste & Quality</Text>
           </View>
           <View style={styles.headerRightIcons}>
             <TouchableOpacity style={styles.iconCircle}>
-              <Icon name="bell-outline" size={22} color={COLORS.WHITE} />
+              <Icon name="bell-outline" size={22} color="#FFD700" />
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.iconCircle,
-                { backgroundColor: COLORS.ACCENT_DARK },
+                { backgroundColor: 'rgba(255,215,0,0.1)' },
               ]}
               onPress={() => dispatch(setLogout())}
             >
-              <Icon name="logout" size={22} color={COLORS.WHITE} />
+              <Icon2 name="logout" size={22} color="#FFD700" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Events Status */}
+        {/* Event Status */}
         <Animated.View
           style={[
             styles.card,
@@ -139,21 +158,21 @@ const Dashboard = ({ navigation }) => {
           <Text style={styles.cardTitle}>Events Status</Text>
           <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: COLORS.ACCENT }]}
+              style={[styles.actionBtn, { backgroundColor: '#FFD700' }]}
             >
-              <Icon name="check-circle" size={20} color={COLORS.BLACK} />
-              <Text style={[styles.btnText, { color: COLORS.BLACK }]}>
+              <Icon name="check-circle" size={20} color="#990303" />
+              <Text style={[styles.btnText, { color: '#990303' }]}>
                 Confirm
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.actionBtn,
-                { backgroundColor: 'rgba(255,255,255,0.2)' },
+                { backgroundColor: 'rgba(255,255,255,0.1)' },
               ]}
             >
-              <Icon name="clock-outline" size={20} color={COLORS.WHITE} />
-              <Text style={[styles.btnText, { color: COLORS.WHITE }]}>
+              <Icon name="clock-outline" size={20} color="#FFD700" />
+              <Text style={[styles.btnText, { color: '#FFD700' }]}>
                 Tentative
               </Text>
             </TouchableOpacity>
@@ -164,72 +183,51 @@ const Dashboard = ({ navigation }) => {
               style={styles.iconBtn}
               onPress={() => navigation.navigate('Quotation')}
             >
-              <Icon name="plus-circle" size={26} color={COLORS.ACCENT} />
+              <Icon name="plus-circle" size={26} color="#FFD700" />
               <Text style={styles.newIconLabel}>New Booking</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn}>
-              <Icon
-                name="calendar-month-outline"
-                size={26}
-                color={COLORS.ACCENT}
-              />
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => navigation.navigate('EventCalendar')}
+            >
+              <Icon name="calendar-month-outline" size={26} color="#FFD700" />
               <Text style={styles.newIconLabel}>Calendar View</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
 
-        {/* Monthly Overview */}
+        {/* Main Options */}
         <Animated.View
           style={[
             styles.statsGrid,
             { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
           ]}
         >
-          <AnimatedTouchable onPress={() => navigation.navigate('Management')}>
-            <LinearGradient
-              colors={['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.04)']}
-              style={styles.gradientBox}
-            >
-              <Icon
-                name="account-tie-outline"
-                size={30}
-                color={COLORS.ACCENT}
-              />
-              <Text style={styles.statText}>Management</Text>
-            </LinearGradient>
-          </AnimatedTouchable>
-          <AnimatedTouchable onPress={() => navigation.navigate('Sales')}>
-            <LinearGradient
-              colors={['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.04)']}
-              style={styles.gradientBox}
-            >
-              <Icon name="cash-multiple" size={30} color={COLORS.ACCENT} />
-              <Text style={styles.statText}>Sales</Text>
-            </LinearGradient>
-          </AnimatedTouchable>
-          <AnimatedTouchable onPress={() => navigation.navigate('Kitchen')}>
-            <LinearGradient
-              colors={['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.04)']}
-              style={styles.gradientBox}
-            >
-              <Icon name="chef-hat" size={30} color={COLORS.ACCENT} />
-              <Text style={styles.statText}>Kitchen</Text>
-            </LinearGradient>
-          </AnimatedTouchable>
-          <AnimatedTouchable onPress={() => navigation.navigate('Pending')}>
-            <LinearGradient
-              colors={['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.04)']}
-              style={styles.gradientBox}
-            >
-              <Icon name="progress-clock" size={30} color={COLORS.ACCENT} />
-              <Text style={styles.statText}>Pending</Text>
-            </LinearGradient>
-          </AnimatedTouchable>
+          <DashboardTile
+            icon="account-tie-outline"
+            label="Management"
+            onPress={() => navigation.navigate('Management')}
+          />
+          <DashboardTile
+            icon="cash-multiple"
+            label="Sales"
+            onPress={() => navigation.navigate('Sales')}
+          />
+          <DashboardTile
+            icon="chef-hat"
+            label="Kitchen"
+            onPress={() => navigation.navigate('Kitchen')}
+          />
+          <DashboardTile
+            icon="progress-clock"
+            label="Pending"
+            onPress={() => navigation.navigate('Pending')}
+          />
         </Animated.View>
 
         {/* Announcements */}
         <View style={styles.announceHeaderRow}>
-          <Icon name="bullhorn-outline" size={22} color={COLORS.ACCENT} />
+          <Icon name="bullhorn-outline" size={22} color="#FFD700" />
           <Text style={[styles.sectionTitle, { marginLeft: 8 }]}>
             Announcements
           </Text>
@@ -256,42 +254,31 @@ const Dashboard = ({ navigation }) => {
 export default Dashboard;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 0,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
     paddingHorizontal: 20,
-    paddingTop: StatusBar.currentHeight + 10 || 40,
+    paddingTop: StatusBar.currentHeight - 15 || 20,
+    marginBottom: 20,
   },
-  greeting: {
-    color: COLORS.WHITE,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  subtext: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    marginTop: 3,
-  },
+  greeting: { color: '#FFD700', fontSize: 20, fontWeight: '700' },
+  subtext: { color: '#fff', fontSize: 12, marginTop: 3 },
   headerRightIcons: { flexDirection: 'row', gap: 12 },
   iconCircle: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     padding: 8,
     borderRadius: 25,
   },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 20,
     padding: 20,
     marginBottom: 25,
     marginHorizontal: 20,
   },
-  cardTitle: { color: COLORS.WHITE, fontSize: 18, fontWeight: '700' },
+  cardTitle: { color: '#FFD700', fontSize: 18, fontWeight: '700' },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -317,7 +304,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   newIconLabel: {
-    color: COLORS.ACCENT,
+    color: '#FFD700',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 5,
@@ -336,64 +323,77 @@ const styles = StyleSheet.create({
     paddingVertical: 28,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: 'rgba(255,255,255,0.2)',
   },
-  statText: {
-    color: COLORS.WHITE,
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 8,
-    textAlign: 'center',
-  },
+  statText: { color: '#FFD700', fontSize: 14, fontWeight: '600', marginTop: 8 },
   announceHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
     marginTop: 15,
   },
-  sectionTitle: {
-    color: COLORS.WHITE,
-    fontSize: 18,
-    fontWeight: '700',
-  },
+  sectionTitle: { color: '#FFD700', fontSize: 18, fontWeight: '700' },
   announcementCard: {
     width: 220,
     borderRadius: 18,
     padding: 18,
     marginRight: 15,
+    // 🔥 soft glow + subtle shadow for premium look
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
   },
   announceTitle: {
-    color: COLORS.WHITE,
+    color: '#FFD700',
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 15,
     textAlign: 'center',
   },
+  announceRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
+  },
+  announceTitle: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   announceRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  miniBox: {
-    width: '48%',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 14,
-    paddingVertical: 12,
+    justifyContent: 'space-around',
     alignItems: 'center',
-    shadowColor: COLORS.BLACK,
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    // elevation: 3,
   },
-  miniLabel: {
-    color: COLORS.WHITE,
+  circleBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countCircle: {
+    width: 55,
+    height: 55,
+    borderRadius: 55,
+    backgroundColor: 'rgba(255,215,0,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFD700',
+    marginBottom: 6,
+  },
+  circleText: {
+    color: '#FFD700',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  circleLabel: {
+    color: '#fff',
     fontSize: 12,
     fontWeight: '600',
-    marginTop: 6,
-  },
-  miniNumber: {
-    color: COLORS.WHITE,
-    fontSize: 11,
-    marginTop: 2,
+    letterSpacing: 0.5,
   },
 });

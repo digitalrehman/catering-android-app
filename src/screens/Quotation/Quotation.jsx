@@ -13,6 +13,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import COLORS from '../../utils/colors';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
+import AppHeader from '../../components/AppHeader';
 const API_URL =
   'http://cat.de2solutions.com/mobile_dash/event_post_service.php';
 const DEFAULT_ROWS = 5;
@@ -433,14 +434,7 @@ const Quotation = ({ navigation }) => {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation?.goBack?.()}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.WHITE} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Quotation</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
+     <AppHeader title="Quotation" />
       <ScrollView contentContainerStyle={styles.container}>
         {/* --- Client Information Section --- */}
         <View style={styles.section}>
@@ -687,15 +681,7 @@ export default Quotation;
 // STYLES (Combined and adjusted)
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.GRAY_LIGHT },
-  header: {
-    height: 60,
-    backgroundColor: COLORS.PRIMARY_DARK,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-  },
-  headerTitle: { color: COLORS.WHITE, fontSize: 18, fontWeight: '700' },
+
   container: { padding: 12 },
 
   // --- Client Info Styles ---
