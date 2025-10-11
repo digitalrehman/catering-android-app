@@ -8,17 +8,19 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  Modal,
+  Platform,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import COLORS from '../../utils/colors';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import AppHeader from '../../components/AppHeader';
+
 const API_URL =
   'http://cat.de2solutions.com/mobile_dash/event_post_service.php';
 const DEFAULT_ROWS = 5;
 
-// Helper for default rows
 const makeDefaultRows = (startId = 1) =>
   Array.from({ length: DEFAULT_ROWS }).map((_, i) => ({
     id: String(startId + i),
@@ -65,36 +67,68 @@ const ExcelCell = ({
   );
 };
 
+// NEW: Column-wise Radio Button Component
+const RadioButtonColumn = ({ label, selected, onPress, isRateMode }) => {
+  const displayLabel = 
+    label === 'perhead' ? 'Per Head' : 
+    label === 'perkg' ? 'Per KG' : 
+    label;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[
+        styles.radioColumnOption, // New style for column alignment
+        selected ? styles.radioColumnOptionActive : null,
+        isRateMode ? styles.radioGroupRate : styles.radioGroupService // Flex adjustments
+      ]}
+    >
+      <Ionicons
+        name={selected ? 'radio-button-on' : 'radio-button-off'}
+        size={18}
+        // Change color to ACCENT on selection
+        color={selected ? COLORS.ACCENT : COLORS.PRIMARY_DARK}
+      />
+      <Text
+        style={selected ? styles.radioColumnTextActive : styles.radioColumnText}
+      >
+        {displayLabel}
+      </Text>
+    </TouchableOpacity>
+  );
+};
+
+
 const Quotation = ({ navigation }) => {
-  // Client Info State (UPDATED to match your requested fields)
   const [clientInfo, setClientInfo] = useState({
     contactNo: '',
     name: '',
     venue: '',
     dateTime: '',
-    director: '', // stays empty for placeholder
+    director: '',
     noOfGuest: '',
   });
 
-  // State for manual table totals (NEW ADDITION)
   const [manualFoodTotal, setManualFoodTotal] = useState('');
   const [manualDecTotal, setManualDecTotal] = useState('');
 
-  // New State for Service Type (F, D, F+D, F+S)
   const [serviceType, setServiceType] = useState('F');
-
-  // State for Rate Mode ('perhead' | 'perkg')
   const [rateMode, setRateMode] = useState('perhead');
 
   const [directors, setDirectors] = useState([]);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  // State for Per Head extra info
+
+  // Date/Time Picker States
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date());
+
   const [perHeadInfo, setPerHeadInfo] = useState('');
+  const [perHeadExpanded, setPerHeadExpanded] = useState(false);
 
   const [foodRows, setFoodRows] = useState(makeDefaultRows(1));
   const [decRows, setDecRows] = useState(makeDefaultRows(6));
 
-  const [editingCell, setEditingCell] = useState(null); // {table,id,key}
+  const [editingCell, setEditingCell] = useState(null);
 
   useEffect(() => {
     fetch('https://cat.de2solutions.com/mobile_dash/director.php')
@@ -106,7 +140,7 @@ const Quotation = ({ navigation }) => {
       })
       .catch(err => console.log('Director fetch error:', err));
   }, []);
-  // Helper: update client info cell
+
   const updateClientInfo = (key, value) =>
     setClientInfo(prev => ({ ...prev, [key]: value }));
 
@@ -118,7 +152,6 @@ const Quotation = ({ navigation }) => {
         if (!next.manualTotal && (key === 'qty' || key === 'rate')) {
           const q = parseFloat(next.qty || 0);
           const rt = parseFloat(next.rate || 0);
-          // Auto-calculate total
           next.total =
             !isNaN(q) && !isNaN(rt) ? (q * rt).toFixed(2).toString() : '';
         }
@@ -146,11 +179,9 @@ const Quotation = ({ navigation }) => {
   const sumTable = rows =>
     rows.reduce((acc, r) => acc + (parseFloat(r.total || 0) || 0), 0);
 
-  // Auto-calculated totals (used as fallback if manual total is empty)
   const foodAutoTotal = useMemo(() => sumTable(foodRows), [foodRows]);
   const decAutoTotal = useMemo(() => sumTable(decRows), [decRows]);
 
-  // Determine final total for API and display (Use manual if available, else auto)
   const finalFoodTotal = manualFoodTotal
     ? parseFloat(manualFoodTotal)
     : foodAutoTotal;
@@ -159,13 +190,11 @@ const Quotation = ({ navigation }) => {
     : decAutoTotal;
   const grandTotal = finalFoodTotal + finalDecTotal;
 
-  // Function to prepare data for API
   const preparePayload = () => {
     const totalFood = Math.round(finalFoodTotal);
     const totalDecor = Math.round(finalDecTotal);
     const totalGrand = Math.round(grandTotal);
 
-    // Filter out rows with no data and prepare for API
     const cleanFoodDetails = foodRows
       .filter(r => r.menu || r.qty || r.rate || r.total)
       .map(r => ({
@@ -185,25 +214,18 @@ const Quotation = ({ navigation }) => {
       }));
 
     const data = {
-      // Client Info (using updated keys)
       contactNo: clientInfo.contactNo,
-      contactName: clientInfo.name, // Sending 'name' as contactName to API for compatibility
+      contactName: clientInfo.name,
       venue: clientInfo.venue,
       dateTime: clientInfo.dateTime,
       director: clientInfo.director,
       guests: clientInfo.noOfGuest,
-
-      // Mode & Service
       rateMode: rateMode,
-      serviceType: serviceType, // F, D, F+D, F+S
+      serviceType: serviceType,
       perHeadInfo: rateMode === 'perhead' ? perHeadInfo : '',
-
-      // Totals (Using Final calculated/manual totals)
       foodTotal: String(totalFood),
       decorTotal: String(totalDecor),
       grandTotal: String(totalGrand),
-
-      // Details Arrays
       foodDetails: cleanFoodDetails,
       decorationDetails: cleanDecorDetails,
     };
@@ -211,7 +233,6 @@ const Quotation = ({ navigation }) => {
     return data;
   };
 
-  // --- API POST LOGIC ---
   const handleSave = async () => {
     const payload = preparePayload();
 
@@ -234,7 +255,6 @@ const Quotation = ({ navigation }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Add any required auth headers here
         },
         body: JSON.stringify(payload),
       });
@@ -247,17 +267,12 @@ const Quotation = ({ navigation }) => {
       if (response.ok) {
         Alert.alert(
           'Success! 🎉',
-          'Quotation data has been successfully sent to the server. Response: ' +
-            (isJson
-              ? JSON.stringify(data, null, 2).slice(0, 500) + '...'
-              : data),
+          'Quotation data has been successfully sent to the server.',
         );
       } else {
         Alert.alert(
           'API Error',
-          `Failed to post data. Status: ${response.status}. Response: ${
-            isJson ? JSON.stringify(data, null, 2).slice(0, 500) + '...' : data
-          }`,
+          `Failed to post data. Status: ${response.status}.`,
         );
       }
     } catch (error) {
@@ -267,20 +282,17 @@ const Quotation = ({ navigation }) => {
       );
     }
   };
-  // -------------------------
 
-  // Updated flex values for columns (Same as previous step's width adjustments)
   const COL_FLEX = {
-    s_no: 0.1, // S#
-    menu: 0.45, // Menu (Detail) - Reduced
-    qty: 0.1, // Qty - Reduced
-    rate: 0.15, // Rate - Increased
-    total: 0.2, // Total - Increased
+    s_no: 0.1,
+    menu: 0.45,
+    qty: 0.1,
+    rate: 0.15,
+    total: 0.2,
   };
 
   const renderExcelRow = (item, index, rows, setRows, tableName) => {
     const cellKey = key => `${tableName}-${item.id}-${key}`;
-    // Total value displayed without decimal point
     const displayTotal = item.total
       ? String(Math.round(parseFloat(item.total)))
       : '';
@@ -324,7 +336,7 @@ const Quotation = ({ navigation }) => {
         />
 
         <ExcelCell
-          value={displayTotal} // Rounded total value
+          value={displayTotal}
           flex={COL_FLEX.total}
           keyboardType="numeric"
           onChange={t =>
@@ -343,7 +355,6 @@ const Quotation = ({ navigation }) => {
     );
   };
 
-  // Helper function to render editable table total (NEW ADDITION)
   const renderEditableTableTotal = (
     tableName,
     autoTotal,
@@ -355,12 +366,12 @@ const Quotation = ({ navigation }) => {
     const displayValue = manualTotal || String(Math.round(autoTotal));
 
     return (
-      <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>{label}:</Text>
+      <View style={styles.totalInlineRow}>
+        <Text style={styles.totalLabelSmall}>{label}:</Text>
         <TouchableOpacity
           activeOpacity={1}
           style={[
-            styles.totalCell,
+            styles.totalCellSmall,
             editingCell === cellKey && {
               borderColor: COLORS.ACCENT,
               borderWidth: 2,
@@ -375,10 +386,10 @@ const Quotation = ({ navigation }) => {
               onChangeText={setManualTotal}
               keyboardType="numeric"
               onBlur={() => setEditingCell(null)}
-              style={styles.totalInput}
+              style={styles.totalInputSmall}
             />
           ) : (
-            <Text style={styles.totalValue}>{displayValue}</Text>
+            <Text style={styles.totalValueSmall}>{displayValue}</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -387,9 +398,18 @@ const Quotation = ({ navigation }) => {
 
   const renderTable = (rows, setRows, title, autoTotal, tableName) => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>
-        {title} {rateMode === 'perhead' ? '(Per Head)' : '(Per KG)'}
-      </Text>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>
+          {title} {rateMode === 'perhead' ? '(Per Head)' : '(Per KG)'}
+        </Text>
+        {/* Small Add Icon on the right of header (Existing design) */}
+        {/* <TouchableOpacity
+          style={styles.addIconBtn}
+          onPress={() => addRow(rows, setRows)}
+        >
+          <Ionicons name="add-circle" size={28} color={COLORS.PRIMARY} />
+        </TouchableOpacity> */}
+      </View>
 
       <View style={styles.headerRow}>
         <Text style={[styles.headerCell, { flex: COL_FLEX.s_no }]}>S#</Text>
@@ -405,36 +425,38 @@ const Quotation = ({ navigation }) => {
         renderItem={({ item, index }) =>
           renderExcelRow(item, index, rows, setRows, tableName)
         }
-        scrollEnabled={false} // Use parent ScrollView
+        scrollEnabled={false}
       />
 
-      <TouchableOpacity
-        style={styles.addRowBtn}
-        onPress={() => addRow(rows, setRows)}
-      >
-        <Text style={styles.addRowText}>+ Add Row</Text>
-      </TouchableOpacity>
+      {/* Add row + Totals in a single inline row */}
+      <View style={styles.addAndTotalsRow}>
+        <TouchableOpacity
+          style={styles.smallAddLeft}
+          onPress={() => addRow(rows, setRows)}
+        >
+          <Ionicons name="add" size={18} color={COLORS.WHITE} />
+        </TouchableOpacity>
 
-      {/* Editable Total Row */}
-      {tableName === 'food'
-        ? renderEditableTableTotal(
-            'food',
-            autoTotal,
-            manualFoodTotal,
-            setManualFoodTotal,
-          )
-        : renderEditableTableTotal(
-            'dec',
-            autoTotal,
-            manualDecTotal,
-            setManualDecTotal,
-          )}
+        {tableName === 'food'
+          ? renderEditableTableTotal(
+              'food',
+              autoTotal,
+              manualFoodTotal,
+              setManualFoodTotal,
+            )
+          : renderEditableTableTotal(
+              'dec',
+              autoTotal,
+              manualDecTotal,
+              setManualDecTotal,
+            )}
+      </View>
     </View>
   );
 
   return (
     <View style={styles.screen}>
-     <AppHeader title="Quotation" />
+      <AppHeader title="Quotation" />
       <ScrollView contentContainerStyle={styles.container}>
         {/* --- Client Information Section --- */}
         <View style={styles.section}>
@@ -468,10 +490,17 @@ const Quotation = ({ navigation }) => {
 
           {/* Row 2: Date & Time, Director, No of Guest */}
           <View style={styles.topGrid}>
-            {/* DateTime Picker Input */}
+            {/* DateTime: opens calendar modal then time modal */}
             <TouchableOpacity
               style={[styles.topCell, { justifyContent: 'center' }]}
-              onPress={() => setShowDatePicker(true)}
+              onPress={() => {
+                setTempDate(
+                  clientInfo.dateTime
+                    ? new Date(clientInfo.dateTime)
+                    : new Date(),
+                );
+                setShowDateModal(true);
+              }}
             >
               <Text
                 style={{ color: clientInfo.dateTime ? COLORS.BLACK : '#999' }}
@@ -480,7 +509,6 @@ const Quotation = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
 
-            {/* Director Dropdown */}
             <View
               style={[styles.topCell, { padding: 0, justifyContent: 'center' }]}
             >
@@ -501,7 +529,6 @@ const Quotation = ({ navigation }) => {
               </Picker>
             </View>
 
-            {/* No of Guest Input */}
             <TextInput
               style={styles.topCell}
               placeholder="No of Guest"
@@ -512,106 +539,97 @@ const Quotation = ({ navigation }) => {
             />
           </View>
 
-          {showDatePicker && (
-            <DateTimePicker
-              value={
-                clientInfo.dateTime ? new Date(clientInfo.dateTime) : new Date()
-              }
-              mode="datetime"
-              display="default"
-              onChange={(event, selectedDate) => {
-                // ✅ Handle missing event safely
-                if (!event || event.type === 'dismissed' || !selectedDate) {
-                  setShowDatePicker(false);
-                  return;
-                }
-
-                if (event.type === 'set' && selectedDate) {
-                  const formatted = selectedDate.toLocaleString();
-                  updateClientInfo('dateTime', formatted);
-                }
-
-                // ✅ Always close picker after use
-                setShowDatePicker(false);
-              }}
-            />
-          )}
-
-          {/* Row 3: Per Head/Per Kg Selector */}
-          <View style={[styles.topGrid, { alignItems: 'center' }]}>
-            <View
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                justifyContent: 'space-evenly',
-                alignItems: 'center',
-              }}
-            >
-              {['perhead', 'perkg'].map(mode => (
-                <TouchableOpacity
-                  key={mode}
-                  onPress={() => setRateMode(mode)}
-                  style={[
-                    styles.modeOption,
-                    { flex: 1, marginHorizontal: 4 },
-                    rateMode === mode ? styles.modeOptionActive : null,
-                  ]}
-                >
-                  <Text
-                    style={
-                      rateMode === mode
-                        ? styles.modeOptionTextActive
-                        : styles.modeOptionText
+          {/** Date Modal(s) - calendar then time to ensure both in one input **/}
+          <Modal visible={showDateModal} transparent animationType="slide">
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>Select Date</Text>
+                <DateTimePicker
+                  value={tempDate}
+                  mode="date"
+                  display={Platform.OS === 'android' ? 'calendar' : 'spinner'}
+                  onChange={(e, d) => {
+                    if (!d) return;
+                    setTempDate(d);
+                    // Close date and open time selector
+                    if (Platform.OS === 'android') {
+                      setShowDateModal(false);
+                      setTimeout(() => setShowTimeModal(true), 250);
+                    } else {
+                      // iOS keep modal but show time picker after selection
+                      setShowDateModal(false);
+                      setShowTimeModal(true);
                     }
-                  >
-                    {mode === 'perhead' ? 'Per Head' : 'Per KG'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Service Type Radio Buttons */}
-          <View
-            style={[
-              styles.topGrid,
-              {
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: 8,
-              },
-            ]}
-          >
-            {['F', 'D', 'F+D', 'F+S'].map(s => (
-              <TouchableOpacity
-                key={s}
-                onPress={() => setServiceType(s)}
-                style={[
-                  styles.serviceBtn,
-                  { flex: 1, marginHorizontal: 4 },
-                  serviceType === s ? styles.serviceBtnActive : null,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.serviceBtnText,
-                    serviceType === s
-                      ? { color: COLORS.WHITE }
-                      : { color: COLORS.PRIMARY_DARK },
-                  ]}
+                  }}
+                />
+                <TouchableOpacity
+                  style={styles.modalClose}
+                  onPress={() => setShowDateModal(false)}
                 >
-                  {s}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text style={{ color: COLORS.PRIMARY }}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
+          <Modal visible={showTimeModal} transparent animationType="slide">
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>Select Time</Text>
+                <DateTimePicker
+                  value={tempDate}
+                  mode="time"
+                  display={Platform.OS === 'android' ? 'clock' : 'spinner'}
+                  onChange={(e, d) => {
+                    if (!d) return;
+                    // merge date and time
+                    const merged = new Date(
+                      tempDate.getFullYear(),
+                      tempDate.getMonth(),
+                      tempDate.getDate(),
+                      d.getHours(),
+                      d.getMinutes(),
+                    );
+                    const formatted = merged.toLocaleString();
+                    updateClientInfo('dateTime', formatted);
+                    setShowTimeModal(false);
+                  }}
+                />
+                <TouchableOpacity
+                  style={styles.modalClose}
+                  onPress={() => setShowTimeModal(false)}
+                >
+                  <Text style={{ color: COLORS.PRIMARY }}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
+          {/* New Combined row: 6 radio options in a single row */}
+          <View style={[styles.topGrid, styles.radioGroupRow]}>
+            {['perhead', 'perkg', 'F', 'D', 'F+D', 'F+S'].map(opt => {
+              const isRate = opt === 'perhead' || opt === 'perkg';
+              const selected = isRate ? rateMode === opt : serviceType === opt;
+
+              return (
+                <RadioButtonColumn
+                  key={opt}
+                  label={opt}
+                  selected={selected}
+                  isRateMode={isRate}
+                  onPress={() => {
+                    if (isRate) setRateMode(opt);
+                    else setServiceType(opt);
+                  }}
+                />
+              );
+            })}
           </View>
         </View>
-        {/* --- End Client Information Section --- */}
 
-        {/* --- Tables Section (Visible for both perhead and perkg) --- */}
+        {/* --- Tables Section --- */}
         {rateMode && serviceType ? (
           <>
-            {/* FOOD TABLE */}
             {(serviceType.includes('F') || serviceType.includes('S')) &&
               renderTable(
                 foodRows,
@@ -621,7 +639,6 @@ const Quotation = ({ navigation }) => {
                 'food',
               )}
 
-            {/* DECORATION TABLE */}
             {serviceType.includes('D') &&
               renderTable(
                 decRows,
@@ -631,41 +648,48 @@ const Quotation = ({ navigation }) => {
                 'dec',
               )}
 
-            {/* Per Head Info Area (Only for Per Head mode) */}
+            {/* Per Head Info Area (Special Instructions) */}
             {rateMode === 'perhead' && (
               <View style={[styles.section, { padding: 12 }]}>
-                <Text style={styles.totalLabel}>
-                  Per Head Additional Information
-                </Text>
-                <TextInput
-                  style={styles.perHeadInfoInput}
-                  placeholder="Enter specific per-head menu or notes here..."
-                  placeholderTextColor="#666"
-                  multiline
-                  numberOfLines={4}
-                  value={perHeadInfo}
-                  onChangeText={setPerHeadInfo}
-                />
+                <Text style={styles.totalLabel}>Special Instructions</Text>
+                <TouchableOpacity
+                  activeOpacity={1}
+                  onPress={() => setPerHeadExpanded(v => !v)}
+                >
+                  <TextInput
+                    style={[
+                      styles.perHeadInfoInput,
+                      perHeadExpanded ? styles.perHeadExpanded : null,
+                    ]}
+                    placeholder="Enter specific per-head menu or notes here..."
+                    placeholderTextColor="#666"
+                    multiline
+                    numberOfLines={perHeadExpanded ? 4 : 1}
+                    value={perHeadInfo}
+                    onChangeText={setPerHeadInfo}
+                    onFocus={() => setPerHeadExpanded(true)}
+                    onBlur={() => setPerHeadExpanded(false)}
+                  />
+                </TouchableOpacity>
               </View>
             )}
 
-            {/* GRAND TOTAL */}
+            {/* GRAND TOTAL - Footer */}
             <View style={styles.grandTotalRow}>
               <Text style={styles.grandLabel}>Grand Total</Text>
-              {/* Rounded grand total value */}
               <Text style={styles.grandValue}>{Math.round(grandTotal)}</Text>
             </View>
           </>
         ) : (
           <View style={styles.section}>
             <Text style={styles.modeNoteText}>
-              Please select **Per Head** or **Per KG** and **Service Type** to
-              view/fill quotation details.
+              Please select Per Head or Per KG and Service Type to view/fill
+              quotation details.
             </Text>
           </View>
         )}
 
-        {/* Save Button (Last in ScrollView) */}
+        {/* Save Button */}
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
           <Text style={styles.saveBtnText}>Save Quotation Data</Text>
         </TouchableOpacity>
@@ -678,17 +702,16 @@ const Quotation = ({ navigation }) => {
 
 export default Quotation;
 
-// STYLES (Combined and adjusted)
+// --- STYLES ---
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.GRAY_LIGHT },
-
   container: { padding: 12 },
-
-  // --- Client Info Styles ---
   topGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
+    // flexWrap: 'wrap', // Removed flexWrap to force single line if possible
   },
   topCell: {
     flex: 1,
@@ -699,51 +722,54 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.1)',
     color: COLORS.BLACK,
+    minHeight: 44,
   },
-  modeOption: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: COLORS.PRIMARY,
+  // Radio Group Row Style
+  radioGroupRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around', // Changed to space-around for distribution
     alignItems: 'center',
+    marginHorizontal: 0,
+    paddingHorizontal: 4, // Added slight padding
   },
-  modeOptionActive: {
-    backgroundColor: COLORS.PRIMARY,
+  // NEW: Column-wise Radio Option Style
+  radioColumnOption: {
+    // flex: 1, // Removed flex to allow content to dictate size more easily
+    flexDirection: 'column', // Radio button and text in a column
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2, // Reduced padding
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginHorizontal: 2, // Added margin between buttons
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
-  modeOptionText: {
+  radioGroupRate: { flex: 2 }, // Give Per Head/Per KG slightly more space
+  radioGroupService: { flex: 1.5 }, // Give F, D, F+D, F+S slightly less space
+  radioColumnOptionActive: {
+    // Selection style: Use Primary for background or light background, Accent for text/icon
+    backgroundColor: COLORS.PRIMARY, 
+    borderColor: COLORS.PRIMARY_DARK,
+  },
+  radioColumnText: {
+    marginTop: 2, // Space between icon and text
+    fontSize: 10, // Smaller font to save space
     color: COLORS.PRIMARY_DARK,
     fontWeight: '600',
-    fontSize: 14,
-  },
-  modeOptionTextActive: {
-    color: COLORS.WHITE,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  serviceBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: COLORS.PRIMARY_DARK,
-    alignItems: 'center',
-  },
-  serviceBtnActive: {
-    backgroundColor: COLORS.PRIMARY_DARK,
-  },
-  serviceBtnText: {
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  modeNoteText: {
     textAlign: 'center',
-    color: COLORS.GRAY_DARK,
-    marginTop: 8,
-    fontStyle: 'italic',
   },
+  radioColumnTextActive: {
+    marginTop: 2,
+    fontSize: 10,
+    color: COLORS.WHITE, // Text color White on active background
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  
+  // Existing Styles (Unchanged)
   perHeadInfoInput: {
-    minHeight: 100,
+    minHeight: 40,
     backgroundColor: '#f9f9f9',
     borderRadius: 6,
     padding: 10,
@@ -753,13 +779,17 @@ const styles = StyleSheet.create({
     color: COLORS.BLACK,
     marginTop: 8,
   },
-  // --- END Client Info Styles ---
-
+  perHeadExpanded: { minHeight: 100 },
   section: {
     backgroundColor: COLORS.WHITE,
     borderRadius: 8,
     padding: 8,
     marginBottom: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   sectionTitle: {
     fontWeight: '700',
@@ -805,48 +835,53 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     fontSize: 12,
   },
-
-  addRowBtn: {
-    backgroundColor: COLORS.PRIMARY,
-    marginTop: 6,
-    paddingVertical: 8,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  addRowText: { color: COLORS.WHITE, fontWeight: '700' },
-
-  totalRow: {
+  addAndTotalsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 8,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderColor: '#ccc',
-    paddingHorizontal: 4,
+    justifyContent: 'space-between',
   },
-  totalLabel: { fontWeight: '700', color: COLORS.PRIMARY_DARK, fontSize: 14 },
-  totalCell: {
-    minWidth: 80, // Allow space for input
+  smallAddLeft: {
+    backgroundColor: COLORS.PRIMARY,
+    padding: 8,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  totalInlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  totalLabelSmall: {
+    fontWeight: '700',
+    color: COLORS.PRIMARY_DARK,
+    fontSize: 13,
+    marginRight: 6,
+  },
+  totalCellSmall: {
+    minWidth: 70,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: 4,
     borderWidth: 1,
     borderColor: 'transparent',
-    backgroundColor: '#f0f0f0', // Slight background to show editable area
+    backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  totalValue: { fontWeight: '700', color: COLORS.BLACK, fontSize: 14 },
-  totalInput: {
+  totalValueSmall: { fontWeight: '700', color: COLORS.BLACK, fontSize: 13 },
+  totalInputSmall: {
     padding: 0,
-    height: 20,
+    height: 22,
     textAlign: 'center',
     fontWeight: '700',
     color: COLORS.BLACK,
-    fontSize: 14,
+    fontSize: 13,
   },
-
+  summaryBox: { alignItems: 'flex-end', paddingHorizontal: 8 },
+  summaryLabel: { color: COLORS.GRAY_DARK, fontSize: 12 },
+  summaryValue: { fontWeight: '800', fontSize: 16, color: COLORS.ACCENT },
   grandTotalRow: {
     backgroundColor: COLORS.PRIMARY_DARK,
     padding: 12,
@@ -854,11 +889,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 12,
-    marginBottom: 12, // Space before Save button
+    marginBottom: 12,
   },
   grandLabel: { color: COLORS.WHITE, fontSize: 18, fontWeight: '700' },
   grandValue: { color: COLORS.ACCENT, fontSize: 18, fontWeight: '700' },
-
   saveBtn: {
     backgroundColor: COLORS.ACCENT,
     padding: 15,
@@ -866,9 +900,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
-  saveBtnText: {
+  saveBtnText: { color: COLORS.PRIMARY_DARK, fontWeight: '800', fontSize: 16 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCard: {
+    width: '90%',
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 8,
+    padding: 12,
+  },
+  modalTitle: {
+    fontWeight: '700',
+    marginBottom: 8,
     color: COLORS.PRIMARY_DARK,
-    fontWeight: '800',
-    fontSize: 16,
+  },
+  modalClose: { marginTop: 8, alignItems: 'flex-end' },
+  totalLabel: { fontWeight: '700', color: COLORS.PRIMARY_DARK, fontSize: 14 },
+  modeNoteText: {
+    textAlign: 'center',
+    color: COLORS.GRAY_DARK,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });

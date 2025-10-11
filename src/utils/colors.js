@@ -16,6 +16,11 @@ const COLORS = {
   // 🌈 Theme Gradients (optional)
   GRADIENT_PRIMARY: ['#C62828', '#8E0000'],
   GRADIENT_ACCENT: ['#FFCA28', '#FFD54F'],
+
+  BACKGROUND: "#F2F4F5",
+  TEXT: "#333",
+  DARK: "#222",
+  GRAY: "#aaa",
 };
 
 export default COLORS;

@@ -79,7 +79,7 @@ const Dashboard = ({ navigation }) => {
 
   const renderAnnouncementCard = ({ item }) => (
     <LinearGradient
-      colors={['#B83232', '#990303']}
+      colors={['#B83232', '#4A0000']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.announcementCard}
@@ -87,7 +87,7 @@ const Dashboard = ({ navigation }) => {
       {/* Title with Event Icon */}
       <View style={styles.titleRow}>
         <Icon
-          name="calendar-star"
+          name="bullhorn-outline"
           size={22}
           color="#FFD700"
           style={{ marginRight: 6 }}
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     marginBottom: 15,
   },
   announceTitle: {
