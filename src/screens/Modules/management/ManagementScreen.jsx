@@ -8,9 +8,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import AppHeader from '../../components/AppHeader';
+import AppHeader from '../../../components/AppHeader';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import COLORS from '../../utils/colors';
+import COLORS from '../../../utils/colors';
 
 const ManagementScreen = () => {
   const [loader, setLoader] = useState(true);

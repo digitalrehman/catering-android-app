@@ -4,11 +4,11 @@ import Dashboard from '../screens/Dashboard';
 import Quotation from '../screens/Quotation/Quotation';
 import EventCalendarScreen from '../screens/EventCalendar/EventCalendarScreen';
 import EventDetailScreen from '../screens/EventCalendar/EventDetailScreen';
-import ManagementScreen from '../screens/Modules/ManagementScreen';
+import ManagementScreen from '../screens/Modules/management/ManagementScreen';
 import SalesScreen from '../screens/Modules/SalesScreen';
-import KitchenScreen from '../screens/Modules/KitchenScreen';
-import MoreDetailScreen from '../screens/Modules/MoreDetailScreen';
-
+import KitchenScreen from '../screens/Modules/kitchen/KitchenScreen';
+import MoreDetailScreen from '../screens/Modules/management/MoreDetailScreen';
+import HFScreen from '../screens/Modules/kitchen/HFScreen';
 let Stack = createNativeStackNavigator();
 
 const Main = () => {
@@ -27,6 +27,8 @@ const Main = () => {
       <Stack.Screen name="Sales" component={SalesScreen} />
       <Stack.Screen name="Kitchen" component={KitchenScreen} />
       <Stack.Screen name="MoreDetail" component={MoreDetailScreen} />
+      <Stack.Screen name="HF" component={HFScreen} />
+
     </Stack.Navigator>
   );
 };

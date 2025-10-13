@@ -37,7 +37,10 @@ const LoginScreen = ({ navigation }) => {
 
   const loginUser = async () => {
     if (!username.trim()) {
-      Toast.show({ type: 'error', text1: 'Please enter your username or email' });
+      Toast.show({
+        type: 'error',
+        text1: 'Please enter your username or email',
+      });
       return;
     } else if (!password.trim()) {
       Toast.show({ type: 'error', text1: 'Please enter your password' });

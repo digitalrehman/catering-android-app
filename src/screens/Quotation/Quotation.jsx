@@ -69,10 +69,8 @@ const ExcelCell = ({
 
 // NEW: Column-wise Radio Button Component
 const RadioButtonColumn = ({ label, selected, onPress, isRateMode }) => {
-  const displayLabel = 
-    label === 'perhead' ? 'Per Head' : 
-    label === 'perkg' ? 'Per KG' : 
-    label;
+  const displayLabel =
+    label === 'perhead' ? 'Per Head' : label === 'perkg' ? 'Per KG' : label;
 
   return (
     <TouchableOpacity
@@ -80,7 +78,7 @@ const RadioButtonColumn = ({ label, selected, onPress, isRateMode }) => {
       style={[
         styles.radioColumnOption, // New style for column alignment
         selected ? styles.radioColumnOptionActive : null,
-        isRateMode ? styles.radioGroupRate : styles.radioGroupService // Flex adjustments
+        isRateMode ? styles.radioGroupRate : styles.radioGroupService, // Flex adjustments
       ]}
     >
       <Ionicons
@@ -97,7 +95,6 @@ const RadioButtonColumn = ({ label, selected, onPress, isRateMode }) => {
     </TouchableOpacity>
   );
 };
-
 
 const Quotation = ({ navigation }) => {
   const [clientInfo, setClientInfo] = useState({
@@ -402,13 +399,6 @@ const Quotation = ({ navigation }) => {
         <Text style={styles.sectionTitle}>
           {title} {rateMode === 'perhead' ? '(Per Head)' : '(Per KG)'}
         </Text>
-        {/* Small Add Icon on the right of header (Existing design) */}
-        {/* <TouchableOpacity
-          style={styles.addIconBtn}
-          onPress={() => addRow(rows, setRows)}
-        >
-          <Ionicons name="add-circle" size={28} color={COLORS.PRIMARY} />
-        </TouchableOpacity> */}
       </View>
 
       <View style={styles.headerRow}>
@@ -462,81 +452,96 @@ const Quotation = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Client Information</Text>
 
-          {/* Row 1: Contact No, Name, Venue */}
-          <View style={styles.topGrid}>
-            <TextInput
-              style={styles.topCell}
-              placeholder="Contact No."
-              placeholderTextColor="#999"
-              value={clientInfo.contactNo}
-              keyboardType="phone-pad"
-              onChangeText={t => updateClientInfo('contactNo', t)}
-            />
-            <TextInput
-              style={styles.topCell}
-              placeholder="Name"
-              placeholderTextColor="#999"
-              value={clientInfo.name}
-              onChangeText={t => updateClientInfo('name', t)}
-            />
-            <TextInput
-              style={styles.topCell}
-              placeholder="Venue"
-              placeholderTextColor="#999"
-              value={clientInfo.venue}
-              onChangeText={t => updateClientInfo('venue', t)}
-            />
-          </View>
-
-          {/* Row 2: Date & Time, Director, No of Guest */}
-          <View style={styles.topGrid}>
-            {/* DateTime: opens calendar modal then time modal */}
-            <TouchableOpacity
-              style={[styles.topCell, { justifyContent: 'center' }]}
-              onPress={() => {
-                setTempDate(
-                  clientInfo.dateTime
-                    ? new Date(clientInfo.dateTime)
-                    : new Date(),
-                );
-                setShowDateModal(true);
-              }}
-            >
-              <Text
-                style={{ color: clientInfo.dateTime ? COLORS.BLACK : '#999' }}
-              >
-                {clientInfo.dateTime || 'Date & Time'}
-              </Text>
-            </TouchableOpacity>
-
-            <View
-              style={[styles.topCell, { padding: 0, justifyContent: 'center' }]}
-            >
-              <Picker
-                selectedValue={clientInfo.director}
-                onValueChange={value => updateClientInfo('director', value)}
-                dropdownIconColor={COLORS.PRIMARY_DARK}
-                style={{ color: clientInfo.director ? COLORS.BLACK : '#999' }}
-              >
-                <Picker.Item label="Select Director" value="" color="#999" />
-                {directors.map(d => (
-                  <Picker.Item
-                    key={d.combo_code}
-                    label={d.description}
-                    value={d.combo_code}
-                  />
-                ))}
-              </Picker>
+          {/* ===== Top Info Section (Updated Styling) ===== */}
+          <View style={styles.infoCard}>
+            {/* Row 1: Contact No & Name */}
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="Contact No."
+                placeholderTextColor="#b0b0b0"
+                value={clientInfo.contactNo}
+                keyboardType="phone-pad"
+                onChangeText={t => updateClientInfo('contactNo', t)}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Name"
+                placeholderTextColor="#b0b0b0"
+                value={clientInfo.name}
+                onChangeText={t => updateClientInfo('name', t)}
+              />
             </View>
 
-            <TextInput
-              style={styles.topCell}
-              placeholder="No of Guest"
-              placeholderTextColor="#999"
-              value={clientInfo.noOfGuest}
-              keyboardType="numeric"
-              onChangeText={t => updateClientInfo('noOfGuest', t)}
-            />
+            {/* Row 2: Venue & DateTime */}
+            <View style={styles.inputRow}>
+              <TouchableOpacity
+                style={[styles.input, { justifyContent: 'center' }]}
+                onPress={() => {
+                  setTempDate(
+                    clientInfo.dateTime
+                      ? new Date(clientInfo.dateTime)
+                      : new Date(),
+                  );
+                  setShowDateModal(true);
+                }}
+              >
+                <Text
+                  style={{
+                    color: clientInfo.dateTime ? COLORS.DARK : '#b0b0b0',
+                    fontSize: 14,
+                  }}
+                >
+                  {clientInfo.dateTime || 'Date & Time'}
+                </Text>
+              </TouchableOpacity>
+              <TextInput
+                style={styles.input}
+                placeholder="No of Guest"
+                placeholderTextColor="#b0b0b0"
+                value={clientInfo.noOfGuest}
+                keyboardType="numeric"
+                onChangeText={t => updateClientInfo('noOfGuest', t)}
+              />
+            </View>
+
+            {/* Row 3: Director & No. of Guest */}
+            <View style={styles.inputRow}>
+              <View
+                style={[styles.input, { padding: 0, justifyContent: 'center' }]}
+              >
+                <Picker
+                  selectedValue={clientInfo.director}
+                  onValueChange={value => updateClientInfo('director', value)}
+                  dropdownIconColor={COLORS.PRIMARY_DARK}
+                  style={{
+                    color: clientInfo.director ? COLORS.DARK : '#b0b0b0',
+                    fontSize: 14,
+                  }}
+                >
+                  <Picker.Item
+                    label="Select Director"
+                    value=""
+                    color="#b0b0b0"
+                  />
+                  {directors.map(d => (
+                    <Picker.Item
+                      key={d.combo_code}
+                      label={d.description}
+                      value={d.combo_code}
+                    />
+                  ))}
+                </Picker>
+              </View>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Venue"
+                placeholderTextColor="#b0b0b0"
+                value={clientInfo.venue}
+                onChangeText={t => updateClientInfo('venue', t)}
+              />
+            </View>
           </View>
 
           {/** Date Modal(s) - calendar then time to ensure both in one input **/}
@@ -702,8 +707,6 @@ const Quotation = ({ navigation }) => {
 
 export default Quotation;
 
-// --- STYLES ---
-
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.GRAY_LIGHT },
   container: { padding: 12 },
@@ -711,7 +714,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
-    // flexWrap: 'wrap', // Removed flexWrap to force single line if possible
   },
   topCell: {
     flex: 1,
@@ -749,7 +751,7 @@ const styles = StyleSheet.create({
   radioGroupService: { flex: 1.5 }, // Give F, D, F+D, F+S slightly less space
   radioColumnOptionActive: {
     // Selection style: Use Primary for background or light background, Accent for text/icon
-    backgroundColor: COLORS.PRIMARY, 
+    backgroundColor: COLORS.PRIMARY,
     borderColor: COLORS.PRIMARY_DARK,
   },
   radioColumnText: {
@@ -766,7 +768,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
-  
+
   // Existing Styles (Unchanged)
   perHeadInfoInput: {
     minHeight: 40,
@@ -925,5 +927,24 @@ const styles = StyleSheet.create({
     color: COLORS.GRAY_DARK,
     marginTop: 8,
     fontStyle: 'italic',
+  },
+  infoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  input: {
+    flex: 1,
+    borderBottomWidth: 1,
+    borderColor: '#ccc',
+    marginHorizontal: 4,
+    fontSize: 14,
+    color: COLORS.DARK,
   },
 });

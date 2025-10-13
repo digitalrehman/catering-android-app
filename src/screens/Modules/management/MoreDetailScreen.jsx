@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import PieChart from 'react-native-pie-chart';
-import AppHeader from '../../components/AppHeader';
+import AppHeader from '../../../components/AppHeader';
 
 const MoreDetailScreen = ({ route }) => {
   const { type } = route.params;
@@ -17,24 +17,28 @@ const MoreDetailScreen = ({ route }) => {
   const colors = ['#FFD700', '#FF4C4C', '#00FF88', '#FF8800', '#4DB6AC'];
 
   useEffect(() => {
-    // Mock Data based on type
+    // Mock data by type
     const sample = {
       bank: [
         { name: 'HBL Bank', amount: 60000 },
         { name: 'Meezan Bank', amount: 40000 },
+        { name: 'Alfalah Bank', amount: 25000 },
       ],
       payable: [
         { name: 'Supplier A', amount: 15000 },
         { name: 'Supplier B', amount: 11000 },
         { name: 'Supplier C', amount: 9000 },
+        { name: 'Supplier D', amount: 7000 },
       ],
       receivable: [
         { name: 'Client Alpha', amount: 13000 },
         { name: 'Client Beta', amount: 8000 },
+        { name: 'Client Gamma', amount: 5000 },
       ],
       cash: [
         { name: 'Office Cash', amount: 55000 },
         { name: 'Event Cash', amount: 40000 },
+        { name: 'Petty Cash', amount: 15000 },
       ],
     };
 
@@ -61,7 +65,7 @@ const MoreDetailScreen = ({ route }) => {
     <LinearGradient colors={['#4A0000', '#1A0000']} style={styles.container}>
       <AppHeader title={title} />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
-        {/* Chart */}
+        {/* Pie Chart Section */}
         <View style={styles.chartContainer}>
           <PieChart
             widthAndHeight={220}
@@ -74,8 +78,10 @@ const MoreDetailScreen = ({ route }) => {
           </View>
         </View>
 
-        {/* List */}
-        <Text style={styles.listHeader}>Top {data.length} {title}</Text>
+        {/* Expense / Detail List */}
+        <Text style={styles.listHeader}>
+          Top {data.length} {title}
+        </Text>
         <FlatList
           data={data}
           keyExtractor={(item, i) => i.toString()}
@@ -85,7 +91,9 @@ const MoreDetailScreen = ({ route }) => {
               <View style={styles.card}>
                 <View style={styles.row}>
                   <Text style={styles.name}>{item.name}</Text>
-                  <Text style={styles.amount}>Rs. {item.amount.toLocaleString()}</Text>
+                  <Text style={styles.amount}>
+                    Rs. {item.amount.toLocaleString()}
+                  </Text>
                 </View>
                 <Text style={styles.percent}>({perc}% of total)</Text>
               </View>
@@ -114,6 +122,8 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     fontSize: 16,
     fontWeight: '700',
+    textAlign: 'center',
+    width: 100,
   },
   listHeader: {
     fontSize: 18,
