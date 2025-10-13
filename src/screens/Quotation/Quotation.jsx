@@ -146,13 +146,6 @@ const Quotation = ({ navigation }) => {
   const [bankSelected, setBankSelected] = useState(PAK_BANKS[0]);
   const [bankAmount, setBankAmount] = useState('');
 
-  // NEW: Special instructions for each table
-  const [foodInstructions, setFoodInstructions] = useState('');
-  const [decInstructions, setDecInstructions] = useState('');
-  const [foodInstructionsExpanded, setFoodInstructionsExpanded] =
-    useState(false);
-  const [decInstructionsExpanded, setDecInstructionsExpanded] = useState(false);
-
   useEffect(() => {
     fetch('https://cat.de2solutions.com/mobile_dash/director.php')
       .then(res => res.json())
@@ -238,11 +231,9 @@ const Quotation = ({ navigation }) => {
   // NEW: Get table title based on service type
   const getTableTitle = tableType => {
     if (tableType === 'food') {
-      return serviceType.includes('S') && serviceType !== 'F+S'
-        ? 'Services Details'
-        : 'Food Details';
+      return 'Food Details';
     } else if (tableType === 'dec') {
-      return 'Decoration Details';
+      return serviceType === 'F+S' ? 'Services Details' : 'Decoration Details';
     }
     return 'Table Details';
   };
@@ -292,9 +283,6 @@ const Quotation = ({ navigation }) => {
       bankSelected: advanceMode === 'bank' ? bankSelected : '',
       foodDetails: cleanFoodDetails,
       decorationDetails: cleanDecorDetails,
-      // NEW: Include special instructions in payload
-      foodInstructions,
-      decInstructions,
     };
 
     return data;
@@ -441,10 +429,8 @@ const Quotation = ({ navigation }) => {
   ) => {
     const label =
       tableName === 'food'
-        ? serviceType.includes('S') && serviceType !== 'F+S'
-          ? 'Services Total'
-          : 'Food Total'
-        : 'Decor Total';
+        ? 'Food Total'
+        : serviceType === 'F+S' ? 'Services Total' : 'Decor Total';
     const cellKey = `${tableName}-table-total`;
     const displayValue = manualTotal || String(Math.round(autoTotal));
 
@@ -479,61 +465,11 @@ const Quotation = ({ navigation }) => {
     );
   };
 
-  // NEW: Render special instructions for each table
-  const renderTableInstructions = (
-    instructions,
-    setInstructions,
-    expanded,
-    setExpanded,
-    tableName,
-  ) => {
-    const placeholder =
-      tableName === 'food' && serviceType.includes('S') && serviceType !== 'F+S'
-        ? 'Enter specific services instructions here...'
-        : tableName === 'food'
-        ? 'Enter specific food instructions here...'
-        : 'Enter specific decoration instructions here...';
-
-    return (
-      <View style={[styles.section, { padding: 12, marginTop: 8 }]}>
-        <Text style={styles.totalLabel}>
-          {tableName === 'food' &&
-          serviceType.includes('S') &&
-          serviceType !== 'F+S'
-            ? 'Services Instructions'
-            : tableName === 'food'
-            ? 'Food Instructions'
-            : 'Decoration Instructions'}
-        </Text>
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setExpanded(v => !v)}
-        >
-          <TextInput
-            style={[
-              styles.perHeadInfoInput,
-              expanded ? styles.perHeadExpanded : null,
-            ]}
-            placeholder={placeholder}
-            placeholderTextColor="#666"
-            multiline
-            numberOfLines={expanded ? 4 : 1}
-            value={instructions}
-            onChangeText={setInstructions}
-            onFocus={() => setExpanded(true)}
-            onBlur={() => setExpanded(false)}
-          />
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
   const renderTable = (rows, setRows, title, autoTotal, tableName) => (
     <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>
-          {getTableTitle(tableName)}{' '}
-          {rateMode === 'perhead' ? '(Per Head)' : '(Per KG)'}
+          {title} {rateMode === 'perhead' ? '(Per Head)' : '(Per KG)'}
         </Text>
       </View>
 
@@ -565,7 +501,6 @@ const Quotation = ({ navigation }) => {
 
         {/* Owner editable per-guest / per-kg amount input for this table */}
         <View style={styles.ownerAmountWrap}>
-          <Text style={styles.ownerLabel}>(per guest):</Text>
           <TextInput
             value={tableName === 'food' ? foodOwnerAmount : decOwnerAmount}
             onChangeText={t =>
@@ -594,23 +529,6 @@ const Quotation = ({ navigation }) => {
               setManualDecTotal,
             )}
       </View>
-
-      {/* NEW: Special Instructions for this table */}
-      {tableName === 'food'
-        ? renderTableInstructions(
-            foodInstructions,
-            setFoodInstructions,
-            foodInstructionsExpanded,
-            setFoodInstructionsExpanded,
-            'food',
-          )
-        : renderTableInstructions(
-            decInstructions,
-            setDecInstructions,
-            decInstructionsExpanded,
-            setDecInstructionsExpanded,
-            'dec',
-          )}
     </View>
   );
 
@@ -830,10 +748,9 @@ const Quotation = ({ navigation }) => {
         {/* --- Tables Section --- */}
         {rateMode && serviceType ? (
           <>
-            {/* FIXED: For F+S, show BOTH Food and Services tables */}
-            {serviceType === 'F+S' ? (
+            {/* Service Type F: Food Table -> Beverages */}
+            {serviceType === 'F' && (
               <>
-                {/* Food Table for F+S */}
                 {renderTable(
                   foodRows,
                   setFoodRows,
@@ -841,8 +758,264 @@ const Quotation = ({ navigation }) => {
                   foodAutoTotal,
                   'food',
                 )}
+                
+                {/* Beverages section */}
+                <View style={styles.section}>
+                  <View style={styles.sectionHeaderRow}>
+                    <Text style={styles.sectionTitle}>Beverages</Text>
+                  </View>
 
-                {/* Services Table for F+S */}
+                  <View style={styles.beverageRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.checkboxOption,
+                        beverageType === 'regular'
+                          ? styles.checkboxOptionActive
+                          : null,
+                      ]}
+                      onPress={() =>
+                        setBeverageType(prev =>
+                          prev === 'regular' ? 'none' : 'regular',
+                        )
+                      }
+                    >
+                      <Ionicons
+                        name={
+                          beverageType === 'regular'
+                            ? 'checkbox'
+                            : 'square-outline'
+                        }
+                        size={18}
+                        color={
+                          beverageType === 'regular'
+                            ? COLORS.PRIMARY_DARK
+                            : COLORS.PRIMARY_DARK
+                        }
+                      />
+                      <Text style={styles.checkboxLabel}>Regular (Rs. 250)</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.checkboxOption,
+                        beverageType === 'can'
+                          ? styles.checkboxOptionActive
+                          : null,
+                      ]}
+                      onPress={() =>
+                        setBeverageType(prev => (prev === 'can' ? 'none' : 'can'))
+                      }
+                    >
+                      <Ionicons
+                        name={
+                          beverageType === 'can' ? 'checkbox' : 'square-outline'
+                        }
+                        size={18}
+                        color={
+                          beverageType === 'can'
+                            ? COLORS.PRIMARY_DARK
+                            : COLORS.PRIMARY_DARK
+                        }
+                      />
+                      <Text style={styles.checkboxLabel}>Can (Rs. 300)</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.beverageTotalRow}>
+                    <Text style={styles.totalLabelSmall}>Beverage Total:</Text>
+                    <Text style={styles.totalValueSmall}>
+                      Rs. {Math.round(beverageTotal)}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            )}
+
+            {/* Service Type D: Decoration Table (No Beverages) */}
+            {serviceType === 'D' && (
+              <>
+                {renderTable(
+                  decRows,
+                  setDecRows,
+                  'Decoration Details',
+                  decAutoTotal,
+                  'dec',
+                )}
+              </>
+            )}
+
+            {/* Service Type F+D: Food Table -> Beverages -> Decoration Table */}
+            {serviceType === 'F+D' && (
+              <>
+                {renderTable(
+                  foodRows,
+                  setFoodRows,
+                  'Food Details',
+                  foodAutoTotal,
+                  'food',
+                )}
+                
+                {/* Beverages section */}
+                <View style={styles.section}>
+                  <View style={styles.sectionHeaderRow}>
+                    <Text style={styles.sectionTitle}>Beverages</Text>
+                  </View>
+
+                  <View style={styles.beverageRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.checkboxOption,
+                        beverageType === 'regular'
+                          ? styles.checkboxOptionActive
+                          : null,
+                      ]}
+                      onPress={() =>
+                        setBeverageType(prev =>
+                          prev === 'regular' ? 'none' : 'regular',
+                        )
+                      }
+                    >
+                      <Ionicons
+                        name={
+                          beverageType === 'regular'
+                            ? 'checkbox'
+                            : 'square-outline'
+                        }
+                        size={18}
+                        color={
+                          beverageType === 'regular'
+                            ? COLORS.PRIMARY_DARK
+                            : COLORS.PRIMARY_DARK
+                        }
+                      />
+                      <Text style={styles.checkboxLabel}>Regular (Rs. 250)</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.checkboxOption,
+                        beverageType === 'can'
+                          ? styles.checkboxOptionActive
+                          : null,
+                      ]}
+                      onPress={() =>
+                        setBeverageType(prev => (prev === 'can' ? 'none' : 'can'))
+                      }
+                    >
+                      <Ionicons
+                        name={
+                          beverageType === 'can' ? 'checkbox' : 'square-outline'
+                        }
+                        size={18}
+                        color={
+                          beverageType === 'can'
+                            ? COLORS.PRIMARY_DARK
+                            : COLORS.PRIMARY_DARK
+                        }
+                      />
+                      <Text style={styles.checkboxLabel}>Can (Rs. 300)</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.beverageTotalRow}>
+                    <Text style={styles.totalLabelSmall}>Beverage Total:</Text>
+                    <Text style={styles.totalValueSmall}>
+                      Rs. {Math.round(beverageTotal)}
+                    </Text>
+                  </View>
+                </View>
+
+                {renderTable(
+                  decRows,
+                  setDecRows,
+                  'Decoration Details',
+                  decAutoTotal,
+                  'dec',
+                )}
+              </>
+            )}
+
+            {/* Service Type F+S: Food Table -> Beverages -> Services Table */}
+            {serviceType === 'F+S' && (
+              <>
+                {renderTable(
+                  foodRows,
+                  setFoodRows,
+                  'Food Details',
+                  foodAutoTotal,
+                  'food',
+                )}
+                
+                {/* Beverages section */}
+                <View style={styles.section}>
+                  <View style={styles.sectionHeaderRow}>
+                    <Text style={styles.sectionTitle}>Beverages</Text>
+                  </View>
+
+                  <View style={styles.beverageRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.checkboxOption,
+                        beverageType === 'regular'
+                          ? styles.checkboxOptionActive
+                          : null,
+                      ]}
+                      onPress={() =>
+                        setBeverageType(prev =>
+                          prev === 'regular' ? 'none' : 'regular',
+                        )
+                      }
+                    >
+                      <Ionicons
+                        name={
+                          beverageType === 'regular'
+                            ? 'checkbox'
+                            : 'square-outline'
+                        }
+                        size={18}
+                        color={
+                          beverageType === 'regular'
+                            ? COLORS.PRIMARY_DARK
+                            : COLORS.PRIMARY_DARK
+                        }
+                      />
+                      <Text style={styles.checkboxLabel}>Regular (Rs. 250)</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.checkboxOption,
+                        beverageType === 'can'
+                          ? styles.checkboxOptionActive
+                          : null,
+                      ]}
+                      onPress={() =>
+                        setBeverageType(prev => (prev === 'can' ? 'none' : 'can'))
+                      }
+                    >
+                      <Ionicons
+                        name={
+                          beverageType === 'can' ? 'checkbox' : 'square-outline'
+                        }
+                        size={18}
+                        color={
+                          beverageType === 'can'
+                            ? COLORS.PRIMARY_DARK
+                            : COLORS.PRIMARY_DARK
+                        }
+                      />
+                      <Text style={styles.checkboxLabel}>Can (Rs. 300)</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.beverageTotalRow}>
+                    <Text style={styles.totalLabelSmall}>Beverage Total:</Text>
+                    <Text style={styles.totalValueSmall}>
+                      Rs. {Math.round(beverageTotal)}
+                    </Text>
+                  </View>
+                </View>
+
                 {renderTable(
                   decRows,
                   setDecRows,
@@ -851,102 +1024,9 @@ const Quotation = ({ navigation }) => {
                   'dec',
                 )}
               </>
-            ) : (
-              <>
-                {/* Original logic for other service types */}
-                {(serviceType.includes('F') || serviceType.includes('S')) &&
-                  renderTable(
-                    foodRows,
-                    setFoodRows,
-                    getTableTitle('food'),
-                    foodAutoTotal,
-                    'food',
-                  )}
-
-                {serviceType.includes('D') &&
-                  renderTable(
-                    decRows,
-                    setDecRows,
-                    getTableTitle('dec'),
-                    decAutoTotal,
-                    'dec',
-                  )}
-              </>
             )}
 
-            {/* Beverages section under Food Details */}
-            {(serviceType.includes('F') || serviceType.includes('S')) && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionTitle}>Beverages</Text>
-                </View>
-
-                <View style={styles.beverageRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.checkboxOption,
-                      beverageType === 'regular'
-                        ? styles.checkboxOptionActive
-                        : null,
-                    ]}
-                    onPress={() =>
-                      setBeverageType(prev =>
-                        prev === 'regular' ? 'none' : 'regular',
-                      )
-                    }
-                  >
-                    <Ionicons
-                      name={
-                        beverageType === 'regular'
-                          ? 'checkbox'
-                          : 'square-outline'
-                      }
-                      size={18}
-                      color={
-                        beverageType === 'regular'
-                          ? COLORS.PRIMARY_DARK
-                          : COLORS.PRIMARY_DARK
-                      }
-                    />
-                    <Text style={styles.checkboxLabel}>Regular (Rs. 250)</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.checkboxOption,
-                      beverageType === 'can'
-                        ? styles.checkboxOptionActive
-                        : null,
-                    ]}
-                    onPress={() =>
-                      setBeverageType(prev => (prev === 'can' ? 'none' : 'can'))
-                    }
-                  >
-                    <Ionicons
-                      name={
-                        beverageType === 'can' ? 'checkbox' : 'square-outline'
-                      }
-                      size={18}
-                      color={
-                        beverageType === 'can'
-                          ? COLORS.PRIMARY_DARK
-                          : COLORS.PRIMARY_DARK
-                      }
-                    />
-                    <Text style={styles.checkboxLabel}>Can (Rs. 300)</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.beverageTotalRow}>
-                  <Text style={styles.totalLabelSmall}>Beverage Total:</Text>
-                  <Text style={styles.totalValueSmall}>
-                    Rs. {Math.round(beverageTotal)}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {/* Per Head Info Area (Special Instructions) */}
+            {/* SINGLE INSTRUCTION - Grand Total ke upper */}
             {rateMode === 'perhead' && (
               <View style={[styles.section, { padding: 12 }]}>
                 <Text style={styles.totalLabel}>Special Instructions</Text>
@@ -1258,9 +1338,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginRight: 12,
   },
-  ownerLabel: { fontSize: 12, color: COLORS.GRAY_DARK, marginBottom: 4 },
   ownerInput: {
-    minWidth: 80,
+    minWidth: 120,
     borderWidth: 1,
     borderColor: '#eee',
     paddingHorizontal: 8,
