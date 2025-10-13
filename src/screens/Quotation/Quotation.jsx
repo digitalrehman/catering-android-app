@@ -1,3 +1,4 @@
+// Quotation.jsx
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
@@ -76,15 +77,14 @@ const RadioButtonColumn = ({ label, selected, onPress, isRateMode }) => {
     <TouchableOpacity
       onPress={onPress}
       style={[
-        styles.radioColumnOption, // New style for column alignment
+        styles.radioColumnOption,
         selected ? styles.radioColumnOptionActive : null,
-        isRateMode ? styles.radioGroupRate : styles.radioGroupService, // Flex adjustments
+        isRateMode ? styles.radioGroupRate : styles.radioGroupService,
       ]}
     >
       <Ionicons
         name={selected ? 'radio-button-on' : 'radio-button-off'}
         size={18}
-        // Change color to ACCENT on selection
         color={selected ? COLORS.ACCENT : COLORS.PRIMARY_DARK}
       />
       <Text
@@ -95,6 +95,16 @@ const RadioButtonColumn = ({ label, selected, onPress, isRateMode }) => {
     </TouchableOpacity>
   );
 };
+
+const PAK_BANKS = [
+  'HBL',
+  'MCB',
+  'UBL',
+  'Meezan Bank',
+  'Allied Bank',
+  'Bank Alfalah',
+  'Standard Chartered',
+];
 
 const Quotation = ({ navigation }) => {
   const [clientInfo, setClientInfo] = useState({
@@ -126,6 +136,22 @@ const Quotation = ({ navigation }) => {
   const [decRows, setDecRows] = useState(makeDefaultRows(6));
 
   const [editingCell, setEditingCell] = useState(null);
+
+  // New states:
+  const [foodOwnerAmount, setFoodOwnerAmount] = useState(''); // owner amount per head/kg
+  const [decOwnerAmount, setDecOwnerAmount] = useState('');
+  const [beverageType, setBeverageType] = useState('none'); // 'none'|'regular'|'can'
+  const [advanceMode, setAdvanceMode] = useState('none'); // 'none'|'cash'|'bank'
+  const [cashReceived, setCashReceived] = useState('');
+  const [bankSelected, setBankSelected] = useState(PAK_BANKS[0]);
+  const [bankAmount, setBankAmount] = useState('');
+
+  // NEW: Special instructions for each table
+  const [foodInstructions, setFoodInstructions] = useState('');
+  const [decInstructions, setDecInstructions] = useState('');
+  const [foodInstructionsExpanded, setFoodInstructionsExpanded] =
+    useState(false);
+  const [decInstructionsExpanded, setDecInstructionsExpanded] = useState(false);
 
   useEffect(() => {
     fetch('https://cat.de2solutions.com/mobile_dash/director.php')
@@ -176,16 +202,50 @@ const Quotation = ({ navigation }) => {
   const sumTable = rows =>
     rows.reduce((acc, r) => acc + (parseFloat(r.total || 0) || 0), 0);
 
+  // owner totals (owner-provided per-head/per-kg * guests)
+  const guestsCount = Number(clientInfo.noOfGuest) || 0;
+  const foodOwnerTotal = (parseFloat(foodOwnerAmount || 0) || 0) * guestsCount;
+  const decOwnerTotal = (parseFloat(decOwnerAmount || 0) || 0) * guestsCount;
+
   const foodAutoTotal = useMemo(() => sumTable(foodRows), [foodRows]);
   const decAutoTotal = useMemo(() => sumTable(decRows), [decRows]);
 
+  // beverage calculation
+  const beverageRate =
+    beverageType === 'regular' ? 250 : beverageType === 'can' ? 300 : 0;
+  const beverageTotal = beverageRate * guestsCount;
+
+  // final totals: manual override still respected
   const finalFoodTotal = manualFoodTotal
     ? parseFloat(manualFoodTotal)
-    : foodAutoTotal;
+    : foodAutoTotal + foodOwnerTotal;
+
   const finalDecTotal = manualDecTotal
     ? parseFloat(manualDecTotal)
-    : decAutoTotal;
-  const grandTotal = finalFoodTotal + finalDecTotal;
+    : decAutoTotal + decOwnerTotal;
+
+  const grandTotal = finalFoodTotal + finalDecTotal + beverageTotal;
+
+  // Advance / balance
+  const advancePaid =
+    advanceMode === 'cash'
+      ? parseFloat(cashReceived || 0) || 0
+      : advanceMode === 'bank'
+      ? parseFloat(bankAmount || 0) || 0
+      : 0;
+  const remainingBalance = Math.max(0, grandTotal - advancePaid);
+
+  // NEW: Get table title based on service type
+  const getTableTitle = tableType => {
+    if (tableType === 'food') {
+      return serviceType.includes('S') && serviceType !== 'F+S'
+        ? 'Services Details'
+        : 'Food Details';
+    } else if (tableType === 'dec') {
+      return 'Decoration Details';
+    }
+    return 'Table Details';
+  };
 
   const preparePayload = () => {
     const totalFood = Math.round(finalFoodTotal);
@@ -222,9 +282,19 @@ const Quotation = ({ navigation }) => {
       perHeadInfo: rateMode === 'perhead' ? perHeadInfo : '',
       foodTotal: String(totalFood),
       decorTotal: String(totalDecor),
+      beverageType,
+      beverageTotal: String(Math.round(beverageTotal)),
+      ownerFoodAmountPerGuest: String(foodOwnerAmount || '0'),
+      ownerDecAmountPerGuest: String(decOwnerAmount || '0'),
       grandTotal: String(totalGrand),
+      advanceMode,
+      advancePaid: String(advancePaid),
+      bankSelected: advanceMode === 'bank' ? bankSelected : '',
       foodDetails: cleanFoodDetails,
       decorationDetails: cleanDecorDetails,
+      // NEW: Include special instructions in payload
+      foodInstructions,
+      decInstructions,
     };
 
     return data;
@@ -278,6 +348,17 @@ const Quotation = ({ navigation }) => {
         'Could not connect to the API server: ' + error.message,
       );
     }
+  };
+
+  // NEW: Download PDF function
+  const handleDownloadPDF = () => {
+    Alert.alert(
+      'Download PDF',
+      'PDF download functionality will be implemented here. Data is ready for PDF generation.',
+      [{ text: 'OK' }],
+    );
+    // Here you would typically call your PDF generation API
+    // For now, we'll just show an alert
   };
 
   const COL_FLEX = {
@@ -358,7 +439,12 @@ const Quotation = ({ navigation }) => {
     manualTotal,
     setManualTotal,
   ) => {
-    const label = tableName === 'food' ? 'Food Total' : 'Decor Total';
+    const label =
+      tableName === 'food'
+        ? serviceType.includes('S') && serviceType !== 'F+S'
+          ? 'Services Total'
+          : 'Food Total'
+        : 'Decor Total';
     const cellKey = `${tableName}-table-total`;
     const displayValue = manualTotal || String(Math.round(autoTotal));
 
@@ -393,11 +479,61 @@ const Quotation = ({ navigation }) => {
     );
   };
 
+  // NEW: Render special instructions for each table
+  const renderTableInstructions = (
+    instructions,
+    setInstructions,
+    expanded,
+    setExpanded,
+    tableName,
+  ) => {
+    const placeholder =
+      tableName === 'food' && serviceType.includes('S') && serviceType !== 'F+S'
+        ? 'Enter specific services instructions here...'
+        : tableName === 'food'
+        ? 'Enter specific food instructions here...'
+        : 'Enter specific decoration instructions here...';
+
+    return (
+      <View style={[styles.section, { padding: 12, marginTop: 8 }]}>
+        <Text style={styles.totalLabel}>
+          {tableName === 'food' &&
+          serviceType.includes('S') &&
+          serviceType !== 'F+S'
+            ? 'Services Instructions'
+            : tableName === 'food'
+            ? 'Food Instructions'
+            : 'Decoration Instructions'}
+        </Text>
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setExpanded(v => !v)}
+        >
+          <TextInput
+            style={[
+              styles.perHeadInfoInput,
+              expanded ? styles.perHeadExpanded : null,
+            ]}
+            placeholder={placeholder}
+            placeholderTextColor="#666"
+            multiline
+            numberOfLines={expanded ? 4 : 1}
+            value={instructions}
+            onChangeText={setInstructions}
+            onFocus={() => setExpanded(true)}
+            onBlur={() => setExpanded(false)}
+          />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderTable = (rows, setRows, title, autoTotal, tableName) => (
     <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>
-          {title} {rateMode === 'perhead' ? '(Per Head)' : '(Per KG)'}
+          {getTableTitle(tableName)}{' '}
+          {rateMode === 'perhead' ? '(Per Head)' : '(Per KG)'}
         </Text>
       </View>
 
@@ -418,7 +554,7 @@ const Quotation = ({ navigation }) => {
         scrollEnabled={false}
       />
 
-      {/* Add row + Totals in a single inline row */}
+      {/* Add row + Owner amount input + Totals in a single inline row */}
       <View style={styles.addAndTotalsRow}>
         <TouchableOpacity
           style={styles.smallAddLeft}
@@ -427,22 +563,83 @@ const Quotation = ({ navigation }) => {
           <Ionicons name="add" size={18} color={COLORS.WHITE} />
         </TouchableOpacity>
 
+        {/* Owner editable per-guest / per-kg amount input for this table */}
+        <View style={styles.ownerAmountWrap}>
+          <Text style={styles.ownerLabel}>(per guest):</Text>
+          <TextInput
+            value={tableName === 'food' ? foodOwnerAmount : decOwnerAmount}
+            onChangeText={t =>
+              tableName === 'food'
+                ? setFoodOwnerAmount(t)
+                : setDecOwnerAmount(t)
+            }
+            placeholder="0"
+            keyboardType="numeric"
+            placeholderTextColor="#666"
+            style={styles.ownerInput}
+          />
+        </View>
+
         {tableName === 'food'
           ? renderEditableTableTotal(
               'food',
-              autoTotal,
+              autoTotal + Math.round(foodOwnerTotal),
               manualFoodTotal,
               setManualFoodTotal,
             )
           : renderEditableTableTotal(
               'dec',
-              autoTotal,
+              autoTotal + Math.round(decOwnerTotal),
               manualDecTotal,
               setManualDecTotal,
             )}
       </View>
+
+      {/* NEW: Special Instructions for this table */}
+      {tableName === 'food'
+        ? renderTableInstructions(
+            foodInstructions,
+            setFoodInstructions,
+            foodInstructionsExpanded,
+            setFoodInstructionsExpanded,
+            'food',
+          )
+        : renderTableInstructions(
+            decInstructions,
+            setDecInstructions,
+            decInstructionsExpanded,
+            setDecInstructionsExpanded,
+            'dec',
+          )}
     </View>
   );
+
+  // Date display formatting to 12-hour with AM/PM
+  const formatDisplayDate = isoString => {
+    if (!isoString) return '';
+    try {
+      const d = new Date(isoString);
+      const datePart = d.toLocaleDateString();
+      // build time with 12-hour format and AM/PM
+      const timePart = d.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+      return `${datePart} ${timePart}`;
+    } catch (e) {
+      return isoString;
+    }
+  };
+
+  // Handlers for Date & Time pickers: ensures we store ISO string and show current date on open
+  const openDatePicker = () => {
+    const start = clientInfo.dateTime
+      ? new Date(clientInfo.dateTime)
+      : new Date();
+    setTempDate(start);
+    setShowDateModal(true);
+  };
 
   return (
     <View style={styles.screen}>
@@ -478,12 +675,7 @@ const Quotation = ({ navigation }) => {
               <TouchableOpacity
                 style={[styles.input, { justifyContent: 'center' }]}
                 onPress={() => {
-                  setTempDate(
-                    clientInfo.dateTime
-                      ? new Date(clientInfo.dateTime)
-                      : new Date(),
-                  );
-                  setShowDateModal(true);
+                  openDatePicker();
                 }}
               >
                 <Text
@@ -492,7 +684,9 @@ const Quotation = ({ navigation }) => {
                     fontSize: 14,
                   }}
                 >
-                  {clientInfo.dateTime || 'Date & Time'}
+                  {clientInfo.dateTime
+                    ? formatDisplayDate(clientInfo.dateTime)
+                    : 'Date & Time'}
                 </Text>
               </TouchableOpacity>
               <TextInput
@@ -505,7 +699,7 @@ const Quotation = ({ navigation }) => {
               />
             </View>
 
-            {/* Row 3: Director & No. of Guest */}
+            {/* Row 3: Director & Venue */}
             <View style={styles.inputRow}>
               <View
                 style={[styles.input, { padding: 0, justifyContent: 'center' }]}
@@ -561,7 +755,6 @@ const Quotation = ({ navigation }) => {
                       setShowDateModal(false);
                       setTimeout(() => setShowTimeModal(true), 250);
                     } else {
-                      // iOS keep modal but show time picker after selection
                       setShowDateModal(false);
                       setShowTimeModal(true);
                     }
@@ -584,6 +777,8 @@ const Quotation = ({ navigation }) => {
                 <DateTimePicker
                   value={tempDate}
                   mode="time"
+                  // ensure 12-hour on Android (is24Hour = false)
+                  is24Hour={false}
                   display={Platform.OS === 'android' ? 'clock' : 'spinner'}
                   onChange={(e, d) => {
                     if (!d) return;
@@ -595,8 +790,8 @@ const Quotation = ({ navigation }) => {
                       d.getHours(),
                       d.getMinutes(),
                     );
-                    const formatted = merged.toLocaleString();
-                    updateClientInfo('dateTime', formatted);
+                    // Store ISO string for reliability across platforms
+                    updateClientInfo('dateTime', merged.toISOString());
                     setShowTimeModal(false);
                   }}
                 />
@@ -635,23 +830,121 @@ const Quotation = ({ navigation }) => {
         {/* --- Tables Section --- */}
         {rateMode && serviceType ? (
           <>
-            {(serviceType.includes('F') || serviceType.includes('S')) &&
-              renderTable(
-                foodRows,
-                setFoodRows,
-                'Food Details',
-                foodAutoTotal,
-                'food',
-              )}
+            {/* FIXED: For F+S, show BOTH Food and Services tables */}
+            {serviceType === 'F+S' ? (
+              <>
+                {/* Food Table for F+S */}
+                {renderTable(
+                  foodRows,
+                  setFoodRows,
+                  'Food Details',
+                  foodAutoTotal,
+                  'food',
+                )}
 
-            {serviceType.includes('D') &&
-              renderTable(
-                decRows,
-                setDecRows,
-                'Decoration Details',
-                decAutoTotal,
-                'dec',
-              )}
+                {/* Services Table for F+S */}
+                {renderTable(
+                  decRows,
+                  setDecRows,
+                  'Services Details',
+                  decAutoTotal,
+                  'dec',
+                )}
+              </>
+            ) : (
+              <>
+                {/* Original logic for other service types */}
+                {(serviceType.includes('F') || serviceType.includes('S')) &&
+                  renderTable(
+                    foodRows,
+                    setFoodRows,
+                    getTableTitle('food'),
+                    foodAutoTotal,
+                    'food',
+                  )}
+
+                {serviceType.includes('D') &&
+                  renderTable(
+                    decRows,
+                    setDecRows,
+                    getTableTitle('dec'),
+                    decAutoTotal,
+                    'dec',
+                  )}
+              </>
+            )}
+
+            {/* Beverages section under Food Details */}
+            {(serviceType.includes('F') || serviceType.includes('S')) && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionTitle}>Beverages</Text>
+                </View>
+
+                <View style={styles.beverageRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.checkboxOption,
+                      beverageType === 'regular'
+                        ? styles.checkboxOptionActive
+                        : null,
+                    ]}
+                    onPress={() =>
+                      setBeverageType(prev =>
+                        prev === 'regular' ? 'none' : 'regular',
+                      )
+                    }
+                  >
+                    <Ionicons
+                      name={
+                        beverageType === 'regular'
+                          ? 'checkbox'
+                          : 'square-outline'
+                      }
+                      size={18}
+                      color={
+                        beverageType === 'regular'
+                          ? COLORS.PRIMARY_DARK
+                          : COLORS.PRIMARY_DARK
+                      }
+                    />
+                    <Text style={styles.checkboxLabel}>Regular (Rs. 250)</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.checkboxOption,
+                      beverageType === 'can'
+                        ? styles.checkboxOptionActive
+                        : null,
+                    ]}
+                    onPress={() =>
+                      setBeverageType(prev => (prev === 'can' ? 'none' : 'can'))
+                    }
+                  >
+                    <Ionicons
+                      name={
+                        beverageType === 'can' ? 'checkbox' : 'square-outline'
+                      }
+                      size={18}
+                      color={
+                        beverageType === 'can'
+                          ? COLORS.PRIMARY_DARK
+                          : COLORS.PRIMARY_DARK
+                      }
+                    />
+                    <Text style={styles.checkboxLabel}>Can (Rs. 300)</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.beverageTotalRow}>
+                  <Text style={styles.totalLabelSmall}>Beverage Total:</Text>
+                  <Text style={styles.totalValueSmall}>
+                    Rs. {Math.round(beverageTotal)}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* Per Head Info Area (Special Instructions) */}
             {rateMode === 'perhead' && (
@@ -682,7 +975,111 @@ const Quotation = ({ navigation }) => {
             {/* GRAND TOTAL - Footer */}
             <View style={styles.grandTotalRow}>
               <Text style={styles.grandLabel}>Grand Total</Text>
-              <Text style={styles.grandValue}>{Math.round(grandTotal)}</Text>
+              <Text style={styles.grandValue}>
+                Rs. {Math.round(grandTotal)}
+              </Text>
+            </View>
+
+            {/* Advance Payment Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Advance Payment</Text>
+
+              <View style={styles.advanceRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.advanceOption,
+                    advanceMode === 'cash' ? styles.advanceOptionActive : null,
+                  ]}
+                  onPress={() => setAdvanceMode('cash')}
+                >
+                  <Text
+                    style={
+                      advanceMode === 'cash'
+                        ? styles.advanceTextActive
+                        : styles.advanceText
+                    }
+                  >
+                    Cash
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.advanceOption,
+                    advanceMode === 'bank' ? styles.advanceOptionActive : null,
+                  ]}
+                  onPress={() => setAdvanceMode('bank')}
+                >
+                  <Text
+                    style={
+                      advanceMode === 'bank'
+                        ? styles.advanceTextActive
+                        : styles.advanceText
+                    }
+                  >
+                    Bank
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {advanceMode === 'cash' && (
+                <View style={styles.advanceInputRow}>
+                  <Text style={styles.totalLabelSmall}>Cash Received:</Text>
+                  <TextInput
+                    value={cashReceived}
+                    onChangeText={setCashReceived}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="#666"
+                    style={styles.advanceInput}
+                  />
+                </View>
+              )}
+
+              {advanceMode === 'bank' && (
+                <>
+                  {/* NEW: Show selected bank name */}
+                  <View style={styles.bankDisplayRow}>
+                    <Text style={styles.bankNameText}>
+                      Selected Bank: {bankSelected}
+                    </Text>
+                  </View>
+
+                  <View style={styles.advanceInputRow}>
+                    <Text style={styles.totalLabelSmall}>Bank:</Text>
+                    <View style={styles.bankPickerWrap}>
+                      <Picker
+                        selectedValue={bankSelected}
+                        onValueChange={setBankSelected}
+                        style={{ flex: 1, height: 40 }} // Reduced height
+                      >
+                        {PAK_BANKS.map(b => (
+                          <Picker.Item key={b} label={b} value={b} />
+                        ))}
+                      </Picker>
+                    </View>
+                  </View>
+
+                  <View style={styles.advanceInputRow}>
+                    <Text style={styles.totalLabelSmall}>Amount:</Text>
+                    <TextInput
+                      value={bankAmount}
+                      onChangeText={setBankAmount}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor="#666"
+                      style={styles.advanceInput}
+                    />
+                  </View>
+                </>
+              )}
+
+              <View style={[styles.advanceInputRow, { marginTop: 10 }]}>
+                <Text style={styles.totalLabelSmall}>Remaining Balance:</Text>
+                <Text style={styles.totalValueSmall}>
+                  Rs. {Math.round(remainingBalance)}
+                </Text>
+              </View>
             </View>
           </>
         ) : (
@@ -694,10 +1091,19 @@ const Quotation = ({ navigation }) => {
           </View>
         )}
 
-        {/* Save Button */}
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>Save Quotation Data</Text>
-        </TouchableOpacity>
+        {/* Save and Download Buttons */}
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+            <Text style={styles.saveBtnText}>Save Quotation</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.downloadBtn}
+            onPress={handleDownloadPDF}
+          >
+            <Text style={styles.downloadBtnText}>Download PDF</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={{ height: 50 }} />
       </ScrollView>
@@ -707,6 +1113,7 @@ const Quotation = ({ navigation }) => {
 
 export default Quotation;
 
+// --- STYLES ---
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.GRAY_LIGHT },
   container: { padding: 12 },
@@ -729,34 +1136,31 @@ const styles = StyleSheet.create({
   // Radio Group Row Style
   radioGroupRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around', // Changed to space-around for distribution
+    justifyContent: 'space-around',
     alignItems: 'center',
     marginHorizontal: 0,
-    paddingHorizontal: 4, // Added slight padding
+    paddingHorizontal: 4,
   },
-  // NEW: Column-wise Radio Option Style
   radioColumnOption: {
-    // flex: 1, // Removed flex to allow content to dictate size more easily
-    flexDirection: 'column', // Radio button and text in a column
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 2, // Reduced padding
+    paddingHorizontal: 2,
     paddingVertical: 4,
     borderRadius: 6,
-    marginHorizontal: 2, // Added margin between buttons
+    marginHorizontal: 2,
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  radioGroupRate: { flex: 2 }, // Give Per Head/Per KG slightly more space
-  radioGroupService: { flex: 1.5 }, // Give F, D, F+D, F+S slightly less space
+  radioGroupRate: { flex: 2 },
+  radioGroupService: { flex: 1.5 },
   radioColumnOptionActive: {
-    // Selection style: Use Primary for background or light background, Accent for text/icon
     backgroundColor: COLORS.PRIMARY,
     borderColor: COLORS.PRIMARY_DARK,
   },
   radioColumnText: {
-    marginTop: 2, // Space between icon and text
-    fontSize: 10, // Smaller font to save space
+    marginTop: 2,
+    fontSize: 10,
     color: COLORS.PRIMARY_DARK,
     fontWeight: '600',
     textAlign: 'center',
@@ -764,12 +1168,11 @@ const styles = StyleSheet.create({
   radioColumnTextActive: {
     marginTop: 2,
     fontSize: 10,
-    color: COLORS.WHITE, // Text color White on active background
+    color: COLORS.WHITE,
     fontWeight: '700',
     textAlign: 'center',
   },
 
-  // Existing Styles (Unchanged)
   perHeadInfoInput: {
     minHeight: 40,
     backgroundColor: '#f9f9f9',
@@ -849,6 +1252,22 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginRight: 8,
   },
+  ownerAmountWrap: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    marginRight: 12,
+  },
+  ownerLabel: { fontSize: 12, color: COLORS.GRAY_DARK, marginBottom: 4 },
+  ownerInput: {
+    minWidth: 80,
+    borderWidth: 1,
+    borderColor: '#eee',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#fafafa',
+  },
   totalInlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -881,28 +1300,140 @@ const styles = StyleSheet.create({
     color: COLORS.BLACK,
     fontSize: 13,
   },
+
+  beverageRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    gap: 12,
+  },
+  checkboxOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
+    marginRight: 12,
+    backgroundColor: '#fff',
+  },
+  checkboxOptionActive: {
+    backgroundColor: '#f5f5f5',
+    borderColor: COLORS.PRIMARY,
+  },
+  checkboxLabel: {
+    marginLeft: 8,
+    fontWeight: '600',
+    color: COLORS.PRIMARY_DARK,
+  },
+
+  beverageTotalRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
   summaryBox: { alignItems: 'flex-end', paddingHorizontal: 8 },
   summaryLabel: { color: COLORS.GRAY_DARK, fontSize: 12 },
   summaryValue: { fontWeight: '800', fontSize: 16, color: COLORS.ACCENT },
+
   grandTotalRow: {
-    backgroundColor: COLORS.PRIMARY_DARK,
     padding: 12,
     borderRadius: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 12,
     marginBottom: 12,
+    backgroundColor: '#fff', // keep white card style
+    borderWidth: 1,
+    borderColor: '#eee',
   },
-  grandLabel: { color: COLORS.WHITE, fontSize: 18, fontWeight: '700' },
-  grandValue: { color: COLORS.ACCENT, fontSize: 18, fontWeight: '700' },
+  grandLabel: { color: COLORS.PRIMARY_DARK, fontSize: 18, fontWeight: '700' },
+  grandValue: { color: COLORS.PRIMARY_DARK, fontSize: 18, fontWeight: '700' },
+
+  // Advance Payment styles
+  advanceRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  advanceOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  advanceOptionActive: {
+    backgroundColor: '#f0f0f0',
+    borderColor: COLORS.PRIMARY,
+  },
+  advanceText: { color: COLORS.PRIMARY_DARK, fontWeight: '700' },
+  advanceTextActive: { color: COLORS.PRIMARY_DARK, fontWeight: '800' },
+  advanceInputRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  advanceInput: {
+    minWidth: 120,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 6,
+    backgroundColor: '#fafafa',
+    textAlign: 'right',
+  },
+  bankPickerWrap: {
+    minWidth: 160,
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 6,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+  },
+  // NEW: Bank display row
+  bankDisplayRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#f0f8ff',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#d1ecff',
+  },
+  bankNameText: {
+    fontWeight: '700',
+    color: COLORS.PRIMARY_DARK,
+    fontSize: 14,
+  },
+
+  // NEW: Button row for side-by-side buttons
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 10,
+  },
   saveBtn: {
+    flex: 1,
     backgroundColor: COLORS.ACCENT,
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 10,
   },
   saveBtnText: { color: COLORS.PRIMARY_DARK, fontWeight: '800', fontSize: 16 },
+  downloadBtn: {
+    flex: 1,
+    backgroundColor: COLORS.PRIMARY,
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  downloadBtnText: { color: COLORS.WHITE, fontWeight: '800', fontSize: 16 },
+
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
