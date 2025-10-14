@@ -4,23 +4,25 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  ScrollView,
   ActivityIndicator,
+  TouchableOpacity,
+  Dimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import AppHeader from '../../../components/AppHeader';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import COLORS from '../../../utils/colors';
+import { useNavigation } from '@react-navigation/native';
+
+const { width } = Dimensions.get('window');
 
 const ManagementScreen = () => {
+  const navigation = useNavigation();
   const [loader, setLoader] = useState(true);
   const [incomeData, setIncomeData] = useState([]);
   const [expenseData, setExpenseData] = useState([]);
   const [revData, setRevData] = useState([]);
 
   useEffect(() => {
-    // Simulate API delay
-    setTimeout(() => {
       setIncomeData([
         { id: 1, title: 'Total Income', amount: 280000 },
         { id: 2, title: 'Event Booking Income', amount: 180000 },
@@ -36,29 +38,41 @@ const ManagementScreen = () => {
           title: 'Cash',
           amount: 95000,
           prev: 88000,
+          type: 'cash',
         },
         {
           id: 2,
           title: 'Bank',
           amount: 125000,
           prev: 110000,
+          type: 'bank',
         },
         {
           id: 3,
           title: 'Receivable',
           amount: 34000,
           prev: 27000,
+          type: 'receivable',
         },
         {
           id: 4,
           title: 'Payable',
           amount: 26000,
           prev: 31000,
+          type: 'payable',
         },
       ]);
       setLoader(false);
-    }, 1000);
   }, []);
+
+  const handleRevenueCardPress = item => {
+    navigation.navigate('MoreDetail', {
+      type: item.type,
+      title: item.title,
+      amount: item.amount,
+      prev: item.prev,
+    });
+  };
 
   const renderRow = ({ item }) => (
     <View style={styles.row}>
@@ -67,79 +81,98 @@ const ManagementScreen = () => {
     </View>
   );
 
-  const renderRevenue = ({ item }) => {
+  const renderRevenue = ({ item, index }) => {
     const isUp = item.amount >= item.prev;
     return (
-      <LinearGradient
-        colors={['#B83232', '#4A0000']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.revenueCard}
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => handleRevenueCardPress(item)}
+        style={[
+          styles.revenueCard,
+          index % 2 === 0 ? { marginLeft: 10, marginRight: 5 } : { marginLeft: 5, marginRight: 10 },
+        ]}
       >
-        <View style={styles.revHeader}>
-          <Text style={styles.revTitle}>{item.title}</Text>
-          <Icon
-            name={isUp ? 'arrow-up-bold' : 'arrow-down-bold'}
-            color={isUp ? '#00FF88' : '#FF4C4C'}
-            size={18}
-          />
-        </View>
-        <Text style={styles.revAmount}>Rs. {item.amount.toLocaleString()}</Text>
-        <Text style={styles.prevAmount}>
-          Prev: Rs. {item.prev.toLocaleString()}
-        </Text>
-      </LinearGradient>
+        <LinearGradient
+          colors={['#B83232', '#4A0000']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.revenueCardGradient}
+        >
+          <View style={styles.revHeader}>
+            <Text style={styles.revTitle}>{item.title}</Text>
+            <Icon
+              name={isUp ? 'arrow-up-bold' : 'arrow-down-bold'}
+              color={isUp ? '#00FF88' : '#FF4C4C'}
+              size={18}
+            />
+          </View>
+          <Text style={styles.revAmount}>
+            Rs. {item.amount.toLocaleString()}
+          </Text>
+          <Text style={styles.prevAmount}>
+            Prev: Rs. {item.prev.toLocaleString()}
+          </Text>
+          <View style={styles.viewMoreContainer}>
+            <Text style={styles.viewMoreText}>View Details</Text>
+            <Icon name="chevron-right" size={16} color="#FFD700" />
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
     );
   };
+
+  if (loader) {
+    return (
+      <LinearGradient colors={['#4A0000', '#1A0000']} style={styles.container}>
+        <AppHeader title="Management" />
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#FFD700" />
+        </View>
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient colors={['#4A0000', '#1A0000']} style={styles.container}>
       <AppHeader title="Management" />
 
-      {loader ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#FFD700" />
-        </View>
-      ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 60 }}
-        >
-          {/* Income Section */}
-          <View style={styles.box}>
-            <Text style={styles.boxHeader}>Income</Text>
-            <FlatList
-              data={incomeData}
-              keyExtractor={item => item.id.toString()}
-              renderItem={renderRow}
-            />
-          </View>
+      <FlatList
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        ListHeaderComponent={
+          <>
+            {/* Income Section */}
+            <View style={styles.box}>
+              <Text style={styles.boxHeader}>Income</Text>
+              <FlatList
+                data={incomeData}
+                keyExtractor={item => item.id.toString()}
+                renderItem={renderRow}
+                scrollEnabled={false}
+              />
+            </View>
 
-          {/* Expense Section */}
-          <View style={styles.box}>
-            <Text style={styles.boxHeader}>Expense</Text>
-            <FlatList
-              data={expenseData}
-              keyExtractor={item => item.id.toString()}
-              renderItem={renderRow}
-            />
-          </View>
+            {/* Expense Section */}
+            <View style={styles.box}>
+              <Text style={styles.boxHeader}>Expense</Text>
+              <FlatList
+                data={expenseData}
+                keyExtractor={item => item.id.toString()}
+                renderItem={renderRow}
+                scrollEnabled={false}
+              />
+            </View>
 
-          {/* Revenue Section */}
-          <Text style={styles.sectionHeader}>Revenue Overview</Text>
-          <FlatList
-            data={revData}
-            keyExtractor={item => item.id.toString()}
-            numColumns={2}
-            columnWrapperStyle={{ justifyContent: 'space-between' }}
-            contentContainerStyle={{
-              paddingHorizontal: 15,
-              paddingBottom: 20,
-            }}
-            renderItem={renderRevenue}
-          />
-        </ScrollView>
-      )}
+            {/* Revenue Section Header */}
+            <Text style={styles.sectionHeader}>Revenue Overview</Text>
+          </>
+        }
+        data={revData}
+        keyExtractor={item => item.id.toString()}
+        numColumns={2}
+        renderItem={renderRevenue}
+        ListFooterComponent={<View style={{ height: 20 }} />}
+      />
     </LinearGradient>
   );
 };
@@ -148,6 +181,9 @@ export default ManagementScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  scrollContent: {
+    // paddingBottom: 60,
+  },
   loaderContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -188,24 +224,33 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     fontSize: 18,
     fontWeight: '700',
-    marginLeft: 20,
+    marginLeft: 15,
     marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 15,
   },
   revenueCard: {
-    width: '47%',
+    width: (width - 40) / 2, // Screen width minus padding, divided by 2
+    marginBottom: 15,
+    flex: 1,
+  },
+  revenueCardGradient: {
     borderRadius: 14,
     padding: 15,
-    marginBottom: 15,
     borderWidth: 1,
     borderColor: 'rgba(255,215,0,0.2)',
+    minHeight: 140,
   },
   revHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  revTitle: { color: '#FFD700', fontSize: 14, fontWeight: '700' },
+  revTitle: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: '700',
+    flex: 1,
+  },
   revAmount: {
     color: '#fff',
     fontSize: 16,
@@ -216,5 +261,19 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 12,
     marginTop: 4,
+  },
+  viewMoreContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  viewMoreText: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
