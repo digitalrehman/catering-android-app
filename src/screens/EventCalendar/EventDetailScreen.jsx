@@ -28,12 +28,12 @@ const EventDetailScreen = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 500,
+        duration: 600,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 500,
+        duration: 600,
         useNativeDriver: true,
       }),
     ]).start();
@@ -54,24 +54,36 @@ const EventDetailScreen = () => {
     );
   }
 
+  // Calculate remaining amount
+  const total = parseFloat(event.total) || 0;
+  const advance = parseFloat(event.advance) || 0;
+  const remaining = total - advance;
+
   const handleConfirm = () => {
     Alert.alert('Confirmed', `${event.name} has been confirmed.`);
-    navigation.goBack();
   };
 
   const handleTentative = () => {
     Alert.alert('Tentative', `${event.name} set as tentative.`);
-    navigation.goBack();
   };
 
   return (
     <LinearGradient colors={['#9B111E', '#4A0000']} style={styles.container}>
-      <AppHeader title="Event Overview" />
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="light-content"
+      />
+      
+      <AppHeader title="Event Details" />
 
       <Animated.ScrollView
         style={[
           styles.scrollContent,
-          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+          { 
+            opacity: fadeAnim, 
+            transform: [{ translateY: slideAnim }] 
+          },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -84,46 +96,114 @@ const EventDetailScreen = () => {
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.topName}>{event.name}</Text>
             <View style={styles.row}>
-              <Icon name="calendar-month" size={16} color="#FFD700" />
-              <Text style={styles.topInfo}>{event.date}</Text>
+              <Icon name="phone" size={16} color="#FFD700" />
+              <Text style={styles.topInfo}>{event.contact_no}</Text>
             </View>
             <View style={styles.row}>
               <Icon name="map-marker" size={16} color="#FFD700" />
-              <Text style={styles.topInfo}>{event.location}</Text>
+              <Text style={styles.topInfo} numberOfLines={2}>
+                {event.venue}
+              </Text>
             </View>
           </View>
         </LinearGradient>
 
-        {/* Details */}
+        {/* Event Details */}
         <View style={styles.detailCard}>
-          <Text style={styles.sectionTitle}>Event Details</Text>
+          <Text style={styles.sectionTitle}>Event Information</Text>
 
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Date</Text>
-            <Text style={styles.value}>{event.date}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.label}>Place</Text>
-            <Text style={styles.value}>{event.location}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.label}>Seats</Text>
-            <Text style={styles.value}>{event.seats || 'N/A'}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.label}>Time</Text>
-            <Text style={styles.value}>{event.time || 'N/A'}</Text>
+            <View style={styles.labelContainer}>
+              <Icon name="account" size={16} color="#FFD700" />
+              <Text style={styles.label}>Name</Text>
+            </View>
+            <Text style={styles.value}>{event.name}</Text>
           </View>
 
-          {/* Action Buttons */}
+          <View style={styles.detailRow}>
+            <View style={styles.labelContainer}>
+              <Icon name="phone" size={16} color="#FFD700" />
+              <Text style={styles.label}>Contact No</Text>
+            </View>
+            <Text style={styles.value}>{event.contact_no}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.labelContainer}>
+              <Icon name="barcode" size={16} color="#FFD700" />
+              <Text style={styles.label}>Function Code</Text>
+            </View>
+            <Text style={styles.value}>{event.function_code}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.labelContainer}>
+              <Icon name="map-marker" size={16} color="#FFD700" />
+              <Text style={styles.label}>Venue</Text>
+            </View>
+            <Text style={styles.value}>{event.venue}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.labelContainer}>
+              <Icon name="account-group" size={16} color="#FFD700" />
+              <Text style={styles.label}>No Of Guest</Text>
+            </View>
+            <Text style={styles.value}>{event.guest}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.labelContainer}>
+              <Icon name="currency-usd" size={16} color="#FFD700" />
+              <Text style={styles.label}>Total</Text>
+            </View>
+            <Text style={styles.value}>Rs. {total.toLocaleString()}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.labelContainer}>
+              <Icon name="cash" size={16} color="#FFD700" />
+              <Text style={styles.label}>Advance</Text>
+            </View>
+            <Text style={styles.value}>Rs. {advance.toLocaleString()}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.labelContainer}>
+              <Icon name="calculator" size={16} color="#FFD700" />
+              <Text style={styles.label}>Remaining</Text>
+            </View>
+            <Text style={[styles.value, { color: remaining > 0 ? '#FF6B6B' : '#4ECDC4' }]}>
+              Rs. {remaining.toLocaleString()}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.labelContainer}>
+              <Icon name="clock" size={16} color="#FFD700" />
+              <Text style={styles.label}>Time</Text>
+            </View>
+            <Text style={styles.value}>{event.time}</Text>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actionCard}>
+          <Text style={styles.sectionTitle}>Actions</Text>
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
+            <TouchableOpacity 
+              style={styles.confirmBtn} 
+              onPress={handleConfirm}
+            >
+              <Icon name="check-circle" size={20} color="#4A0000" />
               <Text style={styles.confirmText}>Confirm</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity
               style={styles.tentativeBtn}
               onPress={handleTentative}
             >
+              <Icon name="clock-outline" size={20} color="#FFD700" />
               <Text style={styles.tentativeText}>Tentative</Text>
             </TouchableOpacity>
           </View>
@@ -137,47 +217,19 @@ export default EventDetailScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-
-  header: {
-    marginHorizontal: 0,
-    paddingVertical: 14,
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
+  center: { 
+    flex: 1, 
+    alignItems: 'center', 
+    justifyContent: 'center' 
   },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-
   scrollContent: {
     paddingHorizontal: 16,
     paddingVertical: 18,
     flexGrow: 1,
   },
-
   topCard: {
     borderRadius: 16,
-    padding: 14,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 18,
@@ -186,38 +238,76 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 5,
   },
-  topAvatar: { width: 80, height: 80, borderRadius: 14 },
-  topName: { color: '#fff', fontSize: 19, fontWeight: '800' },
-  topInfo: { color: '#FFD700', fontSize: 13, marginLeft: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-
+  topAvatar: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 14 
+  },
+  topName: { 
+    color: '#fff', 
+    fontSize: 19, 
+    fontWeight: '800',
+    marginBottom: 8 
+  },
+  topInfo: { 
+    color: '#FFD700', 
+    fontSize: 14, 
+    marginLeft: 8,
+    flex: 1 
+  },
+  row: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 6 
+  },
   detailCard: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
+    padding: 20,
+    marginBottom: 16,
   },
   sectionTitle: {
     color: '#FFD700',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    marginBottom: 10,
+    marginBottom: 16,
     letterSpacing: 0.3,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255,255,255,0.1)',
-    paddingBottom: 6,
   },
-  label: { color: 'rgba(255,255,255,0.7)', fontSize: 13 },
-  value: { color: '#fff', fontSize: 13, fontWeight: '700' },
-
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  label: { 
+    color: 'rgba(255,255,255,0.8)', 
+    fontSize: 14, 
+    marginLeft: 8,
+    fontWeight: '600'
+  },
+  value: { 
+    color: '#fff', 
+    fontSize: 14, 
+    fontWeight: '700',
+    textAlign: 'right',
+    flex: 1
+  },
+  actionCard: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
   actionRow: {
     flexDirection: 'row',
-    marginTop: 16,
     justifyContent: 'space-between',
   },
   confirmBtn: {
@@ -227,8 +317,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginRight: 8,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
-  confirmText: { color: '#4A0000', fontWeight: '700', fontSize: 15 },
+  confirmText: { 
+    color: '#4A0000', 
+    fontWeight: '700', 
+    fontSize: 15,
+    marginLeft: 8 
+  },
   tentativeBtn: {
     flex: 1,
     backgroundColor: 'rgba(255,255,255,0.08)',
@@ -236,6 +333,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginLeft: 8,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FFD700',
   },
-  tentativeText: { color: '#FFD700', fontWeight: '700', fontSize: 15 },
+  tentativeText: { 
+    color: '#FFD700', 
+    fontWeight: '700', 
+    fontSize: 15,
+    marginLeft: 8 
+  },
 });
