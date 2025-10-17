@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Alert,
   PermissionsAndroid,
   Platform,
+  Share,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Calendar } from 'react-native-calendars';
@@ -19,6 +20,415 @@ import { useNavigation } from '@react-navigation/native';
 import AppHeader from '../../components/AppHeader';
 import Toast from 'react-native-toast-message';
 import RNFetchBlob from 'react-native-blob-util';
+
+// PDF Component for better reusability
+const PDFGenerator = {
+  generateHTML: (event, eventDetails) => {
+    const {
+      food = [],
+      beverages = [],
+      decoration = [],
+      services = [],
+    } = eventDetails;
+    const totalAmount = parseFloat(event.total || 0);
+    const advanceAmount = parseFloat(event.advance || 0);
+    const balanceAmount = totalAmount - advanceAmount;
+
+    const formatNumber = num => {
+      return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(num);
+    };
+
+    const numberToWords = num => {
+      if (num === 0) return 'Zero Rupees Only';
+      const ones = [
+        '',
+        'One',
+        'Two',
+        'Three',
+        'Four',
+        'Five',
+        'Six',
+        'Seven',
+        'Eight',
+        'Nine',
+      ];
+      const tens = [
+        '',
+        '',
+        'Twenty',
+        'Thirty',
+        'Forty',
+        'Fifty',
+        'Sixty',
+        'Seventy',
+        'Eighty',
+        'Ninety',
+      ];
+      const teens = [
+        'Ten',
+        'Eleven',
+        'Twelve',
+        'Thirteen',
+        'Fourteen',
+        'Fifteen',
+        'Sixteen',
+        'Seventeen',
+        'Eighteen',
+        'Nineteen',
+      ];
+
+      let words = '';
+
+      if (num >= 1000000) {
+        const millions = Math.floor(num / 1000000);
+        words +=
+          numberToWords(millions).replace(' Rupees Only', '') + ' Million ';
+        num %= 1000000;
+      }
+
+      if (num >= 1000) {
+        const thousands = Math.floor(num / 1000);
+        if (thousands > 0) {
+          words +=
+            numberToWords(thousands).replace(' Rupees Only', '') + ' Thousand ';
+        }
+        num %= 1000;
+      }
+
+      if (num >= 100) {
+        const hundreds = Math.floor(num / 100);
+        words += ones[hundreds] + ' Hundred ';
+        num %= 100;
+      }
+
+      if (num >= 20) {
+        words += tens[Math.floor(num / 10)] + ' ';
+        num %= 10;
+      } else if (num >= 10) {
+        words += teens[num - 10] + ' ';
+        num = 0;
+      }
+
+      if (num > 0) {
+        words += ones[num] + ' ';
+      }
+
+      return words.trim() + ' Rupees Only';
+    };
+
+    const renderTableSection = (items, title, startIndex = 0) => {
+      if (!items || items.length === 0) return '';
+
+      const rows = items
+        .map(
+          (item, index) => `
+        <tr>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${
+            startIndex + index + 1
+          }</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${
+            item.description || 'N/A'
+          }</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${
+            item.quantity || '0'
+          }</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Rs. ${formatNumber(
+            parseFloat(item.unit_price || 0),
+          )}</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Rs. ${formatNumber(
+            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0),
+          )}</td>
+        </tr>
+      `,
+        )
+        .join('');
+
+      const total = items.reduce(
+        (sum, item) =>
+          sum +
+          parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0),
+        0,
+      );
+
+      return `
+        <tr>
+          <td colspan="5" style="background-color: #B83232; color: white; font-weight: bold; padding: 10px; border: 1px solid #B83232; font-size: 12px;">${title.toUpperCase()}</td>
+        </tr>
+        ${rows}
+        <tr style="background-color: #f9f9f9;">
+          <td colspan="4" style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">${title} Total:</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Rs. ${formatNumber(
+            total,
+          )}</td>
+        </tr>
+      `;
+    };
+
+    let currentIndex = 0;
+    const foodSection = renderTableSection(food, 'FOOD', currentIndex);
+    currentIndex += food.length;
+    const beveragesSection = renderTableSection(
+      beverages,
+      'BEVERAGES',
+      currentIndex,
+    );
+    currentIndex += beverages.length;
+    const decorationSection = renderTableSection(
+      decoration,
+      'DECORATION',
+      currentIndex,
+    );
+    currentIndex += decoration.length;
+    const servicesSection = renderTableSection(
+      services,
+      'SERVICES',
+      currentIndex,
+    );
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Quotation - ${event.name}</title>
+        <style>
+          body { 
+            font-family: 'Arial', sans-serif; 
+            margin: 15px; 
+            padding: 0; 
+            color: #333;
+            line-height: 1.4;
+            font-size: 12px;
+          }
+          .header { 
+            text-align: center; 
+            border-bottom: 3px solid #B83232; 
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+          }
+          .company-name { 
+            font-size: 22px; 
+            font-weight: bold; 
+            color: #B83232; 
+            margin-bottom: 4px;
+          }
+          .title { 
+            font-size: 18px; 
+            margin: 8px 0; 
+            font-weight: bold;
+          }
+          .content-wrapper {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+          }
+          .client-info { 
+            flex: 1;
+            margin-right: 12px;
+          }
+          .event-details {
+            flex: 1;
+            margin-left: 12px;
+          }
+          .section-title { 
+            font-weight: bold; 
+            margin-bottom: 6px;
+            color: #B83232;
+            font-size: 13px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 3px;
+          }
+          .info-row { 
+            margin: 3px 0; 
+            font-size: 11px;
+          }
+          table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 10px 0;
+            font-size: 10px;
+            border: 1px solid #ddd;
+          }
+          th, td { 
+            border: 1px solid #ddd; 
+            padding: 6px; 
+            text-align: left;
+          }
+          th { 
+            background-color: #f2f2f2; 
+            font-weight: bold;
+            padding: 8px;
+          }
+          .grand-total-section { 
+            margin-top: 15px; 
+            text-align: right;
+            font-size: 13px;
+            border-top: 2px solid #B83232;
+            padding-top: 8px;
+          }
+          .total-row { 
+            margin: 5px 0; 
+          }
+          .amount-in-words {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            font-style: italic;
+            font-size: 10px;
+          }
+          .footer {
+            margin-top: 25px;
+            text-align: center;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+            font-size: 9px;
+            color: #666;
+          }
+          .director-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+          }
+          .signature-area {
+            margin-top: 30px;
+            text-align: right;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">CATERING SERVICES</div>
+          <div class="title">QUOTATION</div>
+        </div>
+
+        <div class="content-wrapper">
+          <div class="client-info">
+            <div class="section-title">Client Information</div>
+            <div class="info-row"><strong>Party Name:</strong> ${
+              event.name
+            }</div>
+            <div class="info-row"><strong>Contact:</strong> ${
+              event.contact_no
+            }</div>
+            <div class="info-row"><strong>Venue:</strong> ${event.venue}</div>
+            <div class="info-row"><strong>Director Name:</strong> ${
+              event.originalData?.director_name || 'N/A'
+            }</div>
+          </div>
+          
+          <div class="event-details">
+            <div class="section-title">Event Details</div>
+            <div class="info-row"><strong>Guests:</strong> ${event.guest}</div>
+            <div class="info-row"><strong>Date:</strong> ${event.date}</div>
+            <div class="info-row"><strong>Time:</strong> ${
+              event.time || 'N/A'
+            }</div>
+            <div class="info-row"><strong>Function Code:</strong> ${
+              event.function_code
+            }</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Services & Items</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 8%; text-align: center;">S.No</th>
+                <th style="width: 52%">Description</th>
+                <th style="width: 10%; text-align: center;">Quantity</th>
+                <th style="width: 15%; text-align: right;">Rate</th>
+                <th style="width: 15%; text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${foodSection}
+              ${beveragesSection}
+              ${decorationSection}
+              ${servicesSection}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grand-total-section">
+          <div class="total-row"><strong>Total Amount: Rs. ${formatNumber(
+            totalAmount,
+          )}</strong></div>
+          <div class="total-row"><strong>Advance Paid: Rs. ${formatNumber(
+            advanceAmount,
+          )}</strong></div>
+          <div class="total-row"><strong>Balance Due: Rs. ${formatNumber(
+            balanceAmount,
+          )}</strong></div>
+        </div>
+
+        <div class="amount-in-words">
+          <strong>Amount in Words:</strong> ${numberToWords(totalAmount)}
+        </div>
+
+        <div class="signature-area">
+          <div><strong>Authorized Signature</strong></div>
+          <div style="margin-top: 25px;">_________________________</div>
+        </div>
+
+        <div class="footer">
+          <p>Thank you for your business!</p>
+          <div class="director-info">
+            <div>Prepared By: ${
+              event.originalData?.salesman_name || 'Sales Team'
+            }</div>
+            <div>Date: ${new Date().toLocaleDateString()}</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  },
+};
+
+// Base64 encoding function for React Native
+const base64Encode = str => {
+  try {
+    // Using btoa for base64 encoding (available in React Native)
+    return btoa(unescape(encodeURIComponent(str)));
+  } catch (error) {
+    console.error('Base64 encoding error:', error);
+    // Fallback: simple base64 encoding
+    const base64Chars =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    let result = '';
+    let i = 0;
+
+    while (i < str.length) {
+      const a = str.charCodeAt(i++);
+      const b = str.charCodeAt(i++);
+      const c = str.charCodeAt(i++);
+
+      const bitmap = (a << 16) | (b << 8) | c;
+
+      result +=
+        base64Chars.charAt((bitmap >> 18) & 63) +
+        base64Chars.charAt((bitmap >> 12) & 63) +
+        base64Chars.charAt((bitmap >> 6) & 63) +
+        base64Chars.charAt(bitmap & 63);
+    }
+
+    // Pad with '=' if necessary
+    const padding = str.length % 3;
+    if (padding === 1) {
+      return result.slice(0, -2) + '==';
+    } else if (padding === 2) {
+      return result.slice(0, -1) + '=';
+    }
+
+    return result;
+  }
+};
 
 const EventCalendarScreen = () => {
   const navigation = useNavigation();
@@ -93,16 +503,13 @@ const EventCalendarScreen = () => {
     const marked = {};
     const todayDate = new Date();
 
-    // Mark today as selected
     marked[today] = { selected: true, selectedColor: '#FFD700' };
     setSelectedDate(today);
 
-    // Mark event dates
     eventsList.forEach(event => {
       const eventDate = event.date;
       const eventDateObj = new Date(eventDate);
 
-      // Only mark future dates (today and beyond)
       if (eventDateObj >= todayDate) {
         if (marked[eventDate]) {
           marked[eventDate] = {
@@ -122,49 +529,48 @@ const EventCalendarScreen = () => {
     setMarkedDates(marked);
   };
 
-  const onDayPress = day => {
-    const date = day.dateString;
-    const selectedDateObj = new Date(date);
-    const todayDate = new Date();
+  const onDayPress = useCallback(
+    day => {
+      const date = day.dateString;
+      const selectedDateObj = new Date(date);
+      const todayDate = new Date();
 
-    // Clear time for comparison
-    selectedDateObj.setHours(0, 0, 0, 0);
-    todayDate.setHours(0, 0, 0, 0);
+      selectedDateObj.setHours(0, 0, 0, 0);
+      todayDate.setHours(0, 0, 0, 0);
 
-    setSelectedDate(date);
+      setSelectedDate(date);
 
-    // Only show events for today and future dates
-    if (selectedDateObj < todayDate) {
-      setFilteredEvents([]);
-    } else {
-      const filtered = events.filter(e => e.date === date);
-      setFilteredEvents(filtered);
-    }
+      if (selectedDateObj < todayDate) {
+        setFilteredEvents([]);
+      } else {
+        const filtered = events.filter(e => e.date === date);
+        setFilteredEvents(filtered);
+      }
 
-    // Update calendar selection
-    const newMarked = { ...markedDates };
-    Object.keys(newMarked).forEach(k => {
-      if (newMarked[k].selected) newMarked[k].selected = false;
-    });
-    newMarked[date] = {
-      ...(newMarked[date] || {}),
-      selected: true,
-      selectedColor: '#FFD700',
-    };
-    setMarkedDates(newMarked);
-  };
+      const newMarked = { ...markedDates };
+      Object.keys(newMarked).forEach(k => {
+        if (newMarked[k].selected) newMarked[k].selected = false;
+      });
+      newMarked[date] = {
+        ...(newMarked[date] || {}),
+        selected: true,
+        selectedColor: '#FFD700',
+      };
+      setMarkedDates(newMarked);
+    },
+    [events, markedDates],
+  );
 
-  const clearDateFilter = () => {
+  const clearDateFilter = useCallback(() => {
     setFilteredEvents(events);
     setSelectedDate('');
 
-    // Reset calendar selection
     const newMarked = { ...markedDates };
     Object.keys(newMarked).forEach(k => {
       if (newMarked[k].selected) newMarked[k].selected = false;
     });
     setMarkedDates(newMarked);
-  };
+  }, [events, markedDates]);
 
   const requestStoragePermission = async () => {
     if (Platform.OS === 'android') {
@@ -175,20 +581,29 @@ const EventCalendarScreen = () => {
             {
               title: 'Storage Permission Required',
               message:
-                'This app needs access to your storage to save quotation files',
+                'This app needs access to your storage to save PDF files',
               buttonPositive: 'OK',
             },
           );
           return granted === PermissionsAndroid.RESULTS.GRANTED;
         } else if (Platform.Version >= 29) {
-          return true;
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+            {
+              title: 'Storage Permission Required',
+              message:
+                'This app needs access to your storage to save PDF files',
+              buttonPositive: 'OK',
+            },
+          );
+          return granted === PermissionsAndroid.RESULTS.GRANTED;
         } else {
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
             {
               title: 'Storage Permission Required',
               message:
-                'This app needs access to your storage to save quotation files',
+                'This app needs access to your storage to save PDF files',
               buttonPositive: 'OK',
             },
           );
@@ -201,390 +616,97 @@ const EventCalendarScreen = () => {
     }
     return true;
   };
-  const generatePDFHTML = (event, eventItems) => {
-    const totalAmount = parseFloat(event.total || 0);
-    const advanceAmount = parseFloat(event.advance || 0);
-    const balanceAmount = totalAmount - advanceAmount;
 
-    const formatNumber = num => {
-      return new Intl.NumberFormat('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(num);
-    };
+  const fetchEventDetails = async orderNo => {
+    try {
+      const formData = new FormData();
+      formData.append('order_no', orderNo);
 
-    const numberToWords = num => {
-      if (num === 0) return 'Zero Rupees Only';
+      const response = await fetch(
+        'https://cat.de2solutions.com/mobile_dash/get_event_food_decor_detail.php',
+        {
+          method: 'POST',
+          body: formData,
+        },
+      );
 
-      const ones = [
-        '',
-        'One',
-        'Two',
-        'Three',
-        'Four',
-        'Five',
-        'Six',
-        'Seven',
-        'Eight',
-        'Nine',
-      ];
-      const tens = [
-        '',
-        '',
-        'Twenty',
-        'Thirty',
-        'Forty',
-        'Fifty',
-        'Sixty',
-        'Seventy',
-        'Eighty',
-        'Ninety',
-      ];
-      const teens = [
-        'Ten',
-        'Eleven',
-        'Twelve',
-        'Thirteen',
-        'Fourteen',
-        'Fifteen',
-        'Sixteen',
-        'Seventeen',
-        'Eighteen',
-        'Nineteen',
-      ];
+      const data = await response.json();
 
-      let words = '';
+      const eventDetails = {
+        food: data.status_food === 'true' ? data.data_food || [] : [],
+        beverages:
+          data.status_beverages === 'true' ? data.data_beverages || [] : [],
+        decoration:
+          data.status_decoration === 'true' ? data.data_decoration || [] : [],
+        services: [],
+      };
 
-      // Handle millions
-      if (num >= 1000000) {
-        const millions = Math.floor(num / 1000000);
-        words +=
-          numberToWords(millions).replace(' Rupees Only', '') + ' Million ';
-        num %= 1000000;
-      }
-
-      // Handle thousands
-      if (num >= 1000) {
-        const thousands = Math.floor(num / 1000);
-        if (thousands > 0) {
-          words +=
-            numberToWords(thousands).replace(' Rupees Only', '') + ' Thousand ';
-        }
-        num %= 1000;
-      }
-
-      // Handle hundreds
-      if (num >= 100) {
-        const hundreds = Math.floor(num / 100);
-        words += ones[hundreds] + ' Hundred ';
-        num %= 100;
-      }
-
-      // Handle tens and ones
-      if (num >= 20) {
-        words += tens[Math.floor(num / 10)] + ' ';
-        num %= 10;
-      } else if (num >= 10) {
-        words += teens[num - 10] + ' ';
-        num = 0;
-      }
-
-      if (num > 0) {
-        words += ones[num] + ' ';
-      }
-
-      return words.trim() + ' Rupees Only';
-    };
-
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Quotation - ${event.name}</title>
-        <style>
-          body { 
-            font-family: Arial, sans-serif; 
-            margin: 20px; 
-            padding: 0; 
-            color: #333;
-            line-height: 1.4;
-            font-size: 12px;
-          }
-          .header { 
-            text-align: center; 
-            border-bottom: 3px solid #B83232; 
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-          }
-          .company-name { 
-            font-size: 24px; 
-            font-weight: bold; 
-            color: #B83232; 
-            margin-bottom: 5px;
-          }
-          .title { 
-            font-size: 20px; 
-            margin: 10px 0; 
-            font-weight: bold;
-          }
-          .section { 
-            margin: 15px 0; 
-          }
-          .section-title { 
-            font-weight: bold; 
-            margin-bottom: 8px;
-            color: #B83232;
-            font-size: 14px;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 4px;
-          }
-          .client-info { 
-            display: flex; 
-            justify-content: space-between;
-            margin-bottom: 15px;
-          }
-          .info-column { 
-            flex: 1; 
-          }
-          .info-row { 
-            margin: 4px 0; 
-            font-size: 12px;
-          }
-          table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 12px 0;
-            font-size: 10px;
-          }
-          th, td { 
-            border: 1px solid #ddd; 
-            padding: 6px; 
-            text-align: left;
-          }
-          th { 
-            background-color: #f2f2f2; 
-            font-weight: bold;
-          }
-          .total-section { 
-            margin-top: 20px; 
-            text-align: right;
-            font-size: 12px;
-          }
-          .total-row { 
-            margin: 6px 0; 
-          }
-          .amount-in-words {
-            margin-top: 12px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border: 1px solid #ddd;
-            font-style: italic;
-            font-size: 11px;
-          }
-          .footer {
-            margin-top: 30px;
-            text-align: center;
-            border-top: 1px solid #ddd;
-            padding-top: 12px;
-            font-size: 10px;
-            color: #666;
-          }
-          .director-info {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 12px;
-          }
-          .signature-area {
-            margin-top: 40px;
-            text-align: right;
-          }
-          @media print {
-            body { margin: 0; padding: 10px; }
-            .header { margin-top: 0; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="company-name">CATERING SERVICES</div>
-          <div class="title">QUOTATION</div>
-        </div>
-
-        <div class="client-info">
-          <div class="info-column">
-            <div class="section-title">Client Information</div>
-            <div class="info-row"><strong>Party Name:</strong> ${
-              event.name
-            }</div>
-            <div class="info-row"><strong>Contact:</strong> ${
-              event.contact_no
-            }</div>
-            <div class="info-row"><strong>Venue:</strong> ${event.venue}</div>
-            <div class="info-row"><strong>Director Name:</strong> ${
-              event.originalData?.director_name || 'N/A'
-            }</div>
-          </div>
-          <div class="info-column">
-            <div class="info-row"><strong>Guests:</strong> ${event.guest}</div>
-            <div class="info-row"><strong>Date:</strong> ${event.date}</div>
-            <div class="info-row"><strong>Time:</strong> ${
-              event.time || 'N/A'
-            }</div>
-            <div class="info-row"><strong>Function Code:</strong> ${
-              event.function_code
-            }</div>
-          </div>
-        </div>
-
-        <div class="section">
-          <div class="section-title">Services & Items</div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 8%">S.No</th>
-                <th style="width: 52%">Description</th>
-                <th style="width: 10%">Quantity</th>
-                <th style="width: 15%">Rate</th>
-                <th style="width: 15%">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${eventItems
-                .map(
-                  (item, index) => `
-                <tr>
-                  <td>${index + 1}</td>
-                  <td>${item.description}</td>
-                  <td>${item.quantity}</td>
-                  <td>Rs. ${formatNumber(parseFloat(item.unit_price || 0))}</td>
-                  <td>Rs. ${formatNumber(
-                    parseFloat(item.quantity || 0) *
-                      parseFloat(item.unit_price || 0),
-                  )}</td>
-                </tr>
-              `,
-                )
-                .join('')}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="total-section">
-          <div class="total-row"><strong>Total Amount: Rs. ${formatNumber(
-            totalAmount,
-          )}</strong></div>
-          <div class="total-row"><strong>Advance Paid: Rs. ${formatNumber(
-            advanceAmount,
-          )}</strong></div>
-          <div class="total-row"><strong>Balance Due: Rs. ${formatNumber(
-            balanceAmount,
-          )}</strong></div>
-        </div>
-
-        <div class="amount-in-words">
-          <strong>Amount in Words:</strong> ${numberToWords(totalAmount)}
-        </div>
-
-        <div class="signature-area">
-          <div><strong>Authorized Signature</strong></div>
-          <div style="margin-top: 30px;">_________________________</div>
-        </div>
-
-        <div class="footer">
-          <p>Thank you for your business!</p>
-          <div class="director-info">
-            <div>Prepared By: ${
-              event.originalData?.salesman_name || 'Sales Team'
-            }</div>
-            <div>Date: ${new Date().toLocaleDateString()}</div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+      return eventDetails;
+    } catch (error) {
+      console.error('Error fetching event details:', error);
+      return { food: [], beverages: [], decoration: [], services: [] };
+    }
   };
 
-  const saveHTMLAsPDF = async (htmlContent, fileName) => {
+  const generateHTMLContent = async (event, eventDetails) => {
     try {
-      if (Platform.OS === 'android') {
-        const hasPermission = await requestStoragePermission();
-        if (!hasPermission) {
-          Toast.show({
-            type: 'error',
-            text1: 'Permission Required',
-            text2: 'Storage permission is needed to download files',
-          });
-          return;
-        }
-
-        try {
-          const downloadDir = RNFetchBlob.fs.dirs.DownloadDir;
-          const filePath = `${downloadDir}/${fileName}.html`;
-
-          // Save as HTML file
-          await RNFetchBlob.fs.writeFile(filePath, htmlContent, 'utf8');
-
-          // Show system download notification
-          RNFetchBlob.android.addCompleteDownload({
-            title: `Quotation - ${fileName}`,
-            description: 'Quotation HTML downloaded',
-            mime: 'text/html',
-            path: filePath,
-            showNotification: true,
-          });
-
-          Toast.show({
-            type: 'success',
-            text1: 'File Downloaded',
-            text2: 'Quotation saved to Downloads folder',
-          });
-
-          Alert.alert(
-            'Download Complete',
-            `Quotation has been saved as HTML file.\n\nTo convert to PDF:\n1. Open the HTML file\n2. Tap Share/Print\n3. Select "Save as PDF"`,
-            [{ text: 'OK' }],
-          );
-        } catch (downloadError) {
-          console.log('Download folder error:', downloadError);
-
-          // Fallback to Documents directory
-          const documentDir = RNFetchBlob.fs.dirs.DocumentDir;
-          const filePath = `${documentDir}/${fileName}.html`;
-
-          await RNFetchBlob.fs.writeFile(filePath, htmlContent, 'utf8');
-
-          Toast.show({
-            type: 'success',
-            text1: 'File Saved',
-            text2: 'Saved to app storage',
-          });
-
-          Alert.alert(
-            'File Saved',
-            `Quotation saved to app storage.\n\nFile: ${fileName}.html`,
-            [{ text: 'OK' }],
-          );
-        }
-      } else {
-        Alert.alert(
-          'Quotation Ready',
-          'The quotation has been generated. On iOS, consider using a PDF library.',
-          [{ text: 'OK' }],
-        );
-      }
+      const htmlContent = PDFGenerator.generateHTML(event, eventDetails);
+      return htmlContent;
     } catch (error) {
-      console.error('Save error:', error);
+      console.error('HTML generation error:', error);
+      throw error;
+    }
+  };
+
+  const handleDirectShare = async event => {
+    try {
+      Toast.show({
+        type: 'info',
+        text1: 'Preparing PDF',
+        text2: 'Please wait...',
+      });
+
+      const eventDetails = await fetchEventDetails(event.id);
+      const pdfContent = await generatePDFContent(event, eventDetails);
+
+      // PDF file create karenge
+      const fileName = `Quotation_${event.name.replace(/\s+/g, '_')}_${
+        event.function_code
+      }.pdf`;
+
+      let filePath;
+      if (Platform.OS === 'android') {
+        const downloadDir = RNFetchBlob.fs.dirs.DownloadDir;
+        filePath = `${downloadDir}/${fileName}`;
+
+        // PDF content ko file mein save karenge
+        await RNFetchBlob.fs.writeFile(filePath, pdfContent, 'utf8');
+      } else {
+        const documentDir = RNFetchBlob.fs.dirs.DocumentDir;
+        filePath = `${documentDir}/${fileName}`;
+        await RNFetchBlob.fs.writeFile(filePath, pdfContent, 'utf8');
+      }
+
+      // Share karenge
+      const shareOptions = {
+        title: `Quotation - ${event.name}`,
+        message: `Quotation for ${event.name}`,
+        url: `file://${filePath}`,
+        type: 'application/pdf',
+      };
+
+      await Share.share(shareOptions);
+    } catch (error) {
+      console.error('Share error:', error);
       Toast.show({
         type: 'error',
-        text1: 'Download Failed',
-        text2: 'Failed to save file',
+        text1: 'Share Failed',
+        text2: 'Please try again',
       });
     }
   };
 
-  const handlePrintPDF = async event => {
+  const handleDownloadPDF = async event => {
     try {
       Toast.show({
         type: 'info',
@@ -592,29 +714,81 @@ const EventCalendarScreen = () => {
         text2: 'Please wait...',
       });
 
-      // Fetch event items
-      const itemsResponse = await fetch(
-        `https://cat.de2solutions.com/mobile_dash/get_event_item_detail.php?order_no=${event.id}`,
-      );
-      const itemsData = await itemsResponse.json();
-      const eventItems = itemsData.status === 'true' ? itemsData.data : [];
+      const eventDetails = await fetchEventDetails(event.id);
+      const htmlContent = await generateHTMLContent(event, eventDetails);
 
-      // Generate PDF HTML
-      const html = generatePDFHTML(event, eventItems);
+      const hasPermission = await requestStoragePermission();
+      if (!hasPermission) {
+        throw new Error('Storage permission denied');
+      }
 
-      // Save HTML file
       const fileName = `Quotation_${event.name.replace(/\s+/g, '_')}_${
         event.function_code
-      }`;
-      await saveHTMLAsPDF(html, fileName);
+      }.html`;
+
+      let filePath;
+
+      if (Platform.OS === 'android') {
+        const downloadDir = RNFetchBlob.fs.dirs.DownloadDir;
+        filePath = `${downloadDir}/${fileName}`;
+
+        await RNFetchBlob.fs.writeFile(filePath, htmlContent, 'utf8');
+
+        RNFetchBlob.android.addCompleteDownload({
+          title: `Quotation - ${event.name}`,
+          description: 'Quotation HTML downloaded',
+          mime: 'text/html',
+          path: filePath,
+          showNotification: true,
+        });
+      } else {
+        const documentDir = RNFetchBlob.fs.dirs.DocumentDir;
+        filePath = `${documentDir}/${fileName}`;
+        await RNFetchBlob.fs.writeFile(filePath, htmlContent, 'utf8');
+      }
+
+      Toast.show({
+        type: 'success',
+        text1: 'Document Downloaded',
+        text2: 'Quotation saved successfully',
+      });
+
+      Alert.alert(
+        'Download Complete',
+        'Quotation has been saved to your device. You can:\n\n• Open it in a browser\n• Print it as PDF\n• Share it from your file manager',
+        [{ text: 'OK' }],
+      );
     } catch (error) {
-      console.error('PDF generation error:', error);
+      console.error('Download error:', error);
       Toast.show({
         type: 'error',
-        text1: 'Generation Failed',
+        text1: 'Download Failed',
         text2: 'Please try again',
       });
     }
+  };
+
+  const handleShareOptions = event => {
+    Alert.alert(
+      'Quotation Options',
+      'Choose how you want to handle the quotation:',
+      [
+        {
+          text: '📥 Download to Device',
+          onPress: () => handleDownloadPDF(event),
+          style: 'default',
+        },
+        {
+          text: '📤 Share Directly',
+          onPress: () => handleDirectShare(event),
+          style: 'default',
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ],
+    );
   };
 
   const handleEditEvent = async event => {
@@ -625,28 +799,45 @@ const EventCalendarScreen = () => {
         text2: 'Please wait...',
       });
 
-      // Fetch event details from both APIs
+      const formData = new FormData();
+      formData.append('order_no', event.id);
+
       const [headerResponse, itemsResponse] = await Promise.all([
         fetch(
-          `https://cat.de2solutions.com/mobile_dash/get_event_quotation_header.php`,
+          'https://cat.de2solutions.com/mobile_dash/get_event_quotation_header.php',
         ),
         fetch(
-          `https://cat.de2solutions.com/mobile_dash/get_event_item_detail.php?order_no=${event.id}`,
+          'https://cat.de2solutions.com/mobile_dash/get_event_food_decor_detail.php',
+          {
+            method: 'POST',
+            body: formData,
+          },
         ),
       ]);
 
       const headerData = await headerResponse.json();
       const itemsData = await itemsResponse.json();
 
-      if (headerData.status === 'true' && itemsData.status === 'true') {
+      if (headerData.status === 'true') {
         const eventHeader =
           headerData.data.find(h => h.order_no === event.id) ||
           event.originalData;
-        const eventItems = itemsData.data || [];
 
-        // Prepare data for quotation form
+        const eventDetails = {
+          food:
+            itemsData.status_food === 'true' ? itemsData.data_food || [] : [],
+          beverages:
+            itemsData.status_beverages === 'true'
+              ? itemsData.data_beverages || []
+              : [],
+          decoration:
+            itemsData.status_decoration === 'true'
+              ? itemsData.data_decoration || []
+              : [],
+          services: [],
+        };
+
         const quotationData = {
-          // Client Information
           clientInfo: {
             contactNo: eventHeader.contact_no || '',
             name: eventHeader.name || '',
@@ -657,21 +848,21 @@ const EventCalendarScreen = () => {
             director: eventHeader.director_name || '',
             noOfGuest: eventHeader.guest || '',
           },
-          // Event Details
-          serviceType: determineServiceType(eventItems),
-          rateMode: determineRateMode(eventItems),
-          // Items data
-          eventItems: eventItems,
-          // Totals
+          serviceType: determineServiceType(eventDetails),
+          rateMode: determineRateMode(eventDetails),
+          eventItems: [
+            ...eventDetails.food,
+            ...eventDetails.beverages,
+            ...eventDetails.decoration,
+            ...eventDetails.services,
+          ],
           total: eventHeader.total || '0',
           advance: eventHeader.advance || '0',
-          // Additional info
           functionCode: eventHeader.function_code || '',
           directorName: eventHeader.director_name || '',
           orderNo: event.id,
         };
 
-        // Navigate to Quotation screen with pre-filled data
         navigation.navigate('Quotation', {
           editData: quotationData,
           isEditMode: true,
@@ -695,32 +886,26 @@ const EventCalendarScreen = () => {
     }
   };
 
-  // Helper function to determine service type from items
-  const determineServiceType = items => {
-    const hasFood = items.some(
-      item =>
-        item.description?.toLowerCase().includes('food') ||
-        item.description?.toLowerCase().includes('beverage'),
-    );
-    const hasDecoration = items.some(
-      item =>
-        item.description?.toLowerCase().includes('decoration') ||
-        item.description?.toLowerCase().includes('lighting') ||
-        item.description?.toLowerCase().includes('sound'),
-    );
-    const hasServices = items.some(item =>
-      item.description?.toLowerCase().includes('service'),
-    );
+  const determineServiceType = eventDetails => {
+    const { food, decoration, services } = eventDetails;
+    const hasFood = food.length > 0;
+    const hasDecoration = decoration.length > 0;
+    const hasServices = services.length > 0;
 
     if (hasFood && hasServices) return 'F+S';
     if (hasFood && hasDecoration) return 'F+D';
     if (hasDecoration) return 'D';
-    return 'F'; // Default to Food
+    return 'F';
   };
 
-  // Helper function to determine rate mode from items
-  const determineRateMode = items => {
-    const hasPerHead = items.some(item =>
+  const determineRateMode = eventDetails => {
+    const allItems = [
+      ...eventDetails.food,
+      ...eventDetails.beverages,
+      ...eventDetails.decoration,
+      ...eventDetails.services,
+    ];
+    const hasPerHead = allItems.some(item =>
       item.description?.toLowerCase().includes('per head'),
     );
     return hasPerHead ? 'perhead' : 'perkg';
@@ -731,11 +916,7 @@ const EventCalendarScreen = () => {
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.85}
-        onPress={() =>
-          navigation.navigate('EventDetail', {
-            event: item,
-          })
-        }
+        onPress={() => navigation.navigate('EventDetail', { event: item })}
       >
         <LinearGradient
           colors={['#B83232', '#990303']}
@@ -763,9 +944,9 @@ const EventCalendarScreen = () => {
             <View style={styles.actionsContainer}>
               <TouchableOpacity
                 style={styles.actionButton}
-                onPress={() => handlePrintPDF(item)}
+                onPress={() => handleShareOptions(item)}
               >
-                <Icon name="file-download" size={18} color="#FFD700" />
+                <Icon name="share-variant" size={18} color="#FFD700" />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.actionButton}
@@ -1072,21 +1253,5 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontWeight: '600',
     flex: 1,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'white',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
   },
 });
