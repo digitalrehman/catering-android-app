@@ -229,260 +229,210 @@ const EventCalendarScreen = () => {
     }
   };
   const generatePDFFile = async (event, eventDetails) => {
-    const {
-      food = [],
-      beverages = [],
-      decoration = [],
-      services = [],
-    } = eventDetails;
+  const {
+    food = [],
+    beverages = [],
+    decoration = [],
+    services = [],
+  } = eventDetails;
 
-    const totalAmount = parseFloat(event.total || 0);
-    const advanceAmount = parseFloat(event.advance || 0);
-    const balanceAmount = totalAmount - advanceAmount;
+  const totalAmount = parseFloat(event.total || 0);
+  const advanceAmount = parseFloat(event.advance || 0);
+  const balanceAmount = totalAmount - advanceAmount;
 
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([595.28, 841.89]); // A4
-    const { width, height } = page.getSize();
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595.28, 841.89]); // A4
+  const { width, height } = page.getSize();
 
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    let y = height - 50;
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  let y = height - 50;
 
-    const drawText = (
-      text,
+  const drawText = (text, x, y, size = 11, bold = false, color = rgb(0, 0, 0)) => {
+    page.drawText(String(text || ''), {
       x,
       y,
-      size = 11,
-      bold = false,
-      color = rgb(0, 0, 0),
-    ) => {
-      page.drawText(String(text || ''), {
-        x,
-        y,
-        size,
-        font: bold ? fontBold : font,
-        color,
-      });
-    };
-
-    const addSpace = (space = 14) => {
-      y -= space;
-    };
-
-    // Header
-    drawText('CATERING SERVICES', 50, y, 20, true, rgb(0.72, 0.2, 0.2));
-    addSpace(25);
-    drawText('QUOTATION', 50, y, 16, true);
-    addSpace(20);
-    page.drawLine({
-      start: { x: 50, y: y },
-      end: { x: width - 50, y: y },
-      thickness: 1.5,
-      color: rgb(0.72, 0.2, 0.2),
+      size,
+      font: bold ? fontBold : font,
+      color,
     });
-    addSpace(20);
-
-    // Equal Height Alignment for Client Info + Event Details
-    const clientTopY = y;
-
-    // Left block - Client Info
-    drawText(
-      'CLIENT INFORMATION',
-      50,
-      clientTopY,
-      13,
-      true,
-      rgb(0.72, 0.2, 0.2),
-    );
-    addSpace(18);
-    drawText(`Party Name: ${event.name}`, 60, y);
-    addSpace();
-    drawText(`Contact: ${event.contact_no}`, 60, y);
-    addSpace();
-    drawText(`Venue: ${event.venue}`, 60, y);
-    addSpace();
-    drawText(
-      `Director Name: ${event.originalData?.director_name || 'N/A'}`,
-      60,
-      y,
-    );
-
-    // Right block - Event Details (aligned same height as client info)
-    const baseY = clientTopY - 18;
-    drawText('EVENT DETAILS', 320, baseY, 13, true, rgb(0.72, 0.2, 0.2));
-    drawText(`Guests: ${event.guest}`, 330, baseY - 18);
-    drawText(`Date: ${event.date}`, 330, baseY - 33);
-    drawText(`Time: ${event.time || 'N/A'}`, 330, baseY - 48);
-    drawText(`Function Code: ${event.function_code}`, 330, baseY - 63);
-
-    // Reset Y below both blocks
-    y = baseY - 90;
-
-    // Table Header
-    drawText('SERVICES & ITEMS', 50, y, 13, true, rgb(0.72, 0.2, 0.2));
-    addSpace(20);
-
-    const drawTableHeader = () => {
-      const headerY = y;
-      page.drawRectangle({
-        x: 50,
-        y: headerY - 4,
-        width: width - 100,
-        height: 24,
-        color: rgb(0.94, 0.94, 0.94),
-      });
-      drawText('S.No', 55, headerY, 10, true);
-      drawText('Description', 90, headerY, 10, true);
-      drawText('Qty', 400, headerY, 10, true);
-      drawText('Rate', 450, headerY, 10, true);
-      drawText('Amount', 520, headerY, 10, true);
-      addSpace(28);
-    };
-    drawTableHeader();
-
-    const addSection = (items, title) => {
-      if (!items.length) return 0;
-      let sectionTotal = 0;
-
-      drawText(title.toUpperCase(), 50, y, 11, true, rgb(0.72, 0.2, 0.2));
-      addSpace(16);
-
-      items.forEach((item, index) => {
-        const amount =
-          parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0);
-        sectionTotal += amount;
-
-        // Alternate background with better height & padding
-        if (index % 2 === 0) {
-          page.drawRectangle({
-            x: 50,
-            y: y - 4,
-            width: width - 100,
-            height: 18,
-            color: rgb(0.98, 0.98, 0.98),
-          });
-        }
-
-        drawText(`${index + 1}`, 55, y, 9);
-        drawText(item.description || 'N/A', 80, y, 9);
-        drawText(`${item.quantity || 0}`, 400, y, 9);
-        drawText(
-          `Rs. ${parseFloat(item.unit_price || 0).toFixed(2)}`,
-          440,
-          y,
-          9,
-        );
-        drawText(`Rs. ${amount.toFixed(2)}`, 515, y, 9); // shifted left a bit
-
-        page.drawLine({
-          start: { x: 50, y: y - 4 },
-          end: { x: width - 50, y: y - 4 },
-          thickness: 0.5,
-          color: rgb(0.85, 0.85, 0.85),
-        });
-
-        addSpace(18); // increased row height
-      });
-
-      drawText(`${title} Total:`, 400, y, 10, true);
-      drawText(`Rs. ${sectionTotal.toFixed(2)}`, 515, y, 10, true);
-      addSpace(22);
-      return sectionTotal;
-    };
-
-    addSection(food, 'FOOD');
-    addSection(beverages, 'BEVERAGES');
-    addSection(decoration, 'DECORATION');
-    addSection(services, 'SERVICES');
-
-    // Totals section
-    addSpace(12);
-    page.drawLine({
-      start: { x: 50, y },
-      end: { x: width - 50, y },
-      thickness: 1,
-      color: rgb(0.72, 0.2, 0.2),
-    });
-    addSpace(22);
-
-    drawText('Total Amount:', 350, y, 11, true);
-    drawText(`Rs. ${totalAmount.toFixed(2)}`, 465, y, 11, true);
-    addSpace(18);
-    drawText('Advance Paid:', 350, y, 11, true);
-    drawText(`Rs. ${advanceAmount.toFixed(2)}`, 465, y, 11, true);
-    addSpace(18);
-    drawText('Balance Due:', 350, y, 11, true);
-    drawText(`Rs. ${balanceAmount.toFixed(2)}`, 465, y, 11, true);
-    addSpace(28);
-
-    // Amount in Words
-    const amountInWords = numberToWords(totalAmount);
-    drawText('Amount in Words:', 50, y, 10, true, rgb(0.72, 0.2, 0.2));
-    addSpace(12);
-    page.drawRectangle({
-      x: 50,
-      y: y - 5,
-      width: width - 100,
-      height: 26,
-      color: rgb(0.98, 0.98, 0.98),
-    });
-    drawText(amountInWords, 55, y + 2, 9);
-    addSpace(40);
-
-    // Signature
-    drawText('Authorized Signature', width - 180, y, 10, true);
-    page.drawLine({
-      start: { x: width - 180, y: y - 5 },
-      end: { x: width - 50, y: y - 5 },
-      thickness: 0.8,
-      color: rgb(0, 0, 0),
-    });
-    addSpace(30);
-
-    // Footer
-    page.drawLine({
-      start: { x: 50, y: 70 },
-      end: { x: width - 50, y: 70 },
-      thickness: 1,
-      color: rgb(0.85, 0.85, 0.85),
-    });
-    drawText(
-      'Thank you for your business!',
-      50,
-      55,
-      10,
-      true,
-      rgb(0.72, 0.2, 0.2),
-    );
-    drawText(
-      `Prepared By: ${event.originalData?.salesman_name || 'Sales Team'}`,
-      50,
-      40,
-      9,
-    );
-    drawText(`Date: ${new Date().toLocaleDateString()}`, width - 150, 40, 9);
-    drawText(
-      'CATERING SERVICES - Professional Event Management',
-      width / 2 - 140,
-      25,
-      8,
-      true,
-      rgb(0.5, 0.5, 0.5),
-    );
-
-    // Save file
-    const pdfBytes = await pdfDoc.save();
-    const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
-    const fileName = `Quotation_${event.name.replace(/\s+/g, '_')}_${
-      event.function_code
-    }.pdf`;
-    const path = `${RNFetchBlob.fs.dirs.CacheDir}/${fileName}`;
-    await RNFetchBlob.fs.writeFile(path, pdfBase64, 'base64');
-
-    return path;
   };
 
-  // Add this helper function at the top level (outside generatePDFFile)
+  const addSpace = (space = 14) => {
+    y -= space;
+  };
+
+  // Header
+  drawText('CATERING SERVICES', 50, y, 20, true, rgb(0.72, 0.2, 0.2));
+  addSpace(25);
+  drawText('QUOTATION', 50, y, 16, true);
+  addSpace(20);
+  page.drawLine({
+    start: { x: 50, y: y },
+    end: { x: width - 50, y: y },
+    thickness: 1.5,
+    color: rgb(0.72, 0.2, 0.2),
+  });
+  addSpace(25);
+
+  // Client Info + Event Details
+  const clientTopY = y;
+  drawText('CLIENT INFORMATION', 50, clientTopY, 13, true, rgb(0.72, 0.2, 0.2));
+  addSpace(18);
+  drawText(`Party Name: ${event.name}`, 60, y);
+  addSpace();
+  drawText(`Contact: ${event.contact_no}`, 60, y);
+  addSpace();
+  drawText(`Venue: ${event.venue}`, 60, y);
+  addSpace();
+  drawText(`Director Name: ${event.originalData?.director_name || 'N/A'}`, 60, y);
+
+  // Event Details (shifted slightly up)
+  const baseY = clientTopY - 2;
+  drawText('EVENT DETAILS', 320, baseY, 13, true, rgb(0.72, 0.2, 0.2));
+  drawText(`Guests: ${event.guest}`, 330, baseY - 18);
+  drawText(`Date: ${event.date}`, 330, baseY - 33);
+  drawText(`Time: ${event.time || 'N/A'}`, 330, baseY - 48);
+  drawText(`Function Code: ${event.function_code}`, 330, baseY - 63);
+
+  // Reset Y below both blocks
+  y = baseY - 90;
+
+  // Table Header
+  drawText('SERVICES & ITEMS', 50, y, 13, true, rgb(0.72, 0.2, 0.2));
+  addSpace(20);
+
+  const drawTableHeader = () => {
+    const headerY = y;
+    page.drawRectangle({
+      x: 50,
+      y: headerY - 4,
+      width: width - 100,
+      height: 24,
+      color: rgb(0.94, 0.94, 0.94),
+    });
+    drawText('S.No', 55, headerY, 10, true);
+    drawText('Description', 90, headerY, 10, true);
+    drawText('Qty', 400, headerY, 10, true);
+    drawText('Rate', 450, headerY, 10, true);
+    drawText('Amount', 520, headerY, 10, true);
+    addSpace(28);
+  };
+  drawTableHeader();
+
+  const formatNum = n => {
+    const num = parseFloat(n || 0);
+    if (num === 0 || isNaN(num)) return '';
+    return num % 1 === 0 ? String(num) : num.toFixed(2).replace(/\.00$/, '');
+  };
+
+  const capitalize = str =>
+    str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+
+  const addSection = (items, title) => {
+    if (!items.length) return 0;
+    let sectionTotal = 0;
+
+    drawText(capitalize(title), 50, y, 11, true, rgb(0.72, 0.2, 0.2));
+    addSpace(16);
+
+    items.forEach((item, index) => {
+      const qty = formatNum(item.quantity);
+      const rate = formatNum(item.unit_price);
+      const amount = (parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)) || 0;
+      sectionTotal += amount;
+
+      if (index % 2 === 0) {
+        page.drawRectangle({
+          x: 50,
+          y: y - 5,
+          width: width - 100,
+          height: 22,
+          color: rgb(0.98, 0.98, 0.98),
+        });
+      }
+
+      drawText(`${index + 1}`, 55, y, 9);
+      drawText(item.description || 'N/A', 80, y, 9);
+      drawText(qty, 400, y, 9);
+      drawText(rate ? `Rs. ${rate}` : '', 440, y, 9);
+      drawText(amount ? `Rs. ${formatNum(amount)}` : '', 515, y, 9);
+
+      addSpace(20);
+    });
+
+    drawText(`${capitalize(title)} Total:`, 400, y, 10, true);
+    drawText(`Rs. ${formatNum(sectionTotal)}`, 515, y, 10, true);
+    addSpace(22);
+    return sectionTotal;
+  };
+
+  addSection(food, 'food');
+  addSection(beverages, 'beverages');
+  addSection(decoration, 'decoration');
+  addSection(services, 'services');
+
+  addSpace(12);
+  page.drawLine({
+    start: { x: 50, y },
+    end: { x: width - 50, y },
+    thickness: 1,
+    color: rgb(0.72, 0.2, 0.2),
+  });
+  addSpace(22);
+
+  drawText('Grand Total:', 350, y, 11, true);
+  drawText(`Rs. ${formatNum(totalAmount)}`, 465, y, 11, true);
+  addSpace(18);
+  drawText('Received Payment:', 350, y, 11, true);
+  drawText(`Rs. ${formatNum(advanceAmount)}`, 465, y, 11, true);
+  addSpace(18);
+  drawText('Balance:', 350, y, 11, true);
+  drawText(`Rs. ${formatNum(balanceAmount)}`, 465, y, 11, true);
+  addSpace(28);
+
+  const amountInWords = numberToWords(totalAmount);
+  drawText('Amount in Words:', 50, y, 10, true, rgb(0.72, 0.2, 0.2));
+  addSpace(12);
+  page.drawRectangle({
+    x: 50,
+    y: y - 5,
+    width: width - 100,
+    height: 26,
+    color: rgb(0.98, 0.98, 0.98),
+  });
+  drawText(amountInWords, 55, y + 2, 9);
+  addSpace(40);
+
+  drawText('Authorized Signature', width - 180, y, 10, true);
+  page.drawLine({
+    start: { x: width - 180, y: y - 5 },
+    end: { x: width - 50, y: y - 5 },
+    thickness: 0.8,
+    color: rgb(0, 0, 0),
+  });
+  addSpace(30);
+
+  page.drawLine({
+    start: { x: 50, y: 70 },
+    end: { x: width - 50, y: 70 },
+    thickness: 1,
+    color: rgb(0.85, 0.85, 0.85),
+  });
+  drawText('Thank you for your business!', 50, 55, 10, true, rgb(0.72, 0.2, 0.2));
+  drawText(`Prepared By: ${event.originalData?.salesman_name || 'Sales Team'}`, 50, 40, 9);
+  drawText(`Date: ${new Date().toLocaleDateString()}`, width - 150, 40, 9);
+  drawText('CATERING SERVICES - Professional Event Management', width / 2 - 140, 25, 8, true, rgb(0.5, 0.5, 0.5));
+
+  const pdfBytes = await pdfDoc.save();
+  const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
+  const fileName = `Quotation_${event.name.replace(/\s+/g, '_')}_${event.function_code}.pdf`;
+  const path = `${RNFetchBlob.fs.dirs.CacheDir}/${fileName}`;
+  await RNFetchBlob.fs.writeFile(path, pdfBase64, 'base64');
+
+  return path;
+};
+
   const numberToWords = num => {
     if (num === 0) return 'Zero Rupees Only';
 
@@ -566,126 +516,6 @@ const EventCalendarScreen = () => {
     return words.trim() + ' Rupees Only';
   };
 
-  const handleEditEvent = async event => {
-    try {
-      Toast.show({
-        type: 'info',
-        text1: 'Loading Event Data',
-        text2: 'Please wait...',
-      });
-
-      const formData = new FormData();
-      formData.append('order_no', event.id);
-
-      const [headerResponse, itemsResponse] = await Promise.all([
-        fetch(
-          'https://cat.de2solutions.com/mobile_dash/get_event_quotation_header.php',
-        ),
-        fetch(
-          'https://cat.de2solutions.com/mobile_dash/get_event_food_decor_detail.php',
-          {
-            method: 'POST',
-            body: formData,
-          },
-        ),
-      ]);
-
-      const headerData = await headerResponse.json();
-      const itemsData = await itemsResponse.json();
-
-      if (headerData.status === 'true') {
-        const eventHeader =
-          headerData.data.find(h => h.order_no === event.id) ||
-          event.originalData;
-
-        const eventDetails = {
-          food:
-            itemsData.status_food === 'true' ? itemsData.data_food || [] : [],
-          beverages:
-            itemsData.status_beverages === 'true'
-              ? itemsData.data_beverages || []
-              : [],
-          decoration:
-            itemsData.status_decoration === 'true'
-              ? itemsData.data_decoration || []
-              : [],
-          services: [],
-        };
-
-        const quotationData = {
-          clientInfo: {
-            contactNo: eventHeader.contact_no || '',
-            name: eventHeader.name || '',
-            venue: eventHeader.venue || '',
-            dateTime: eventHeader.function_date
-              ? `${eventHeader.function_date}T${eventHeader.time || '12:00:00'}`
-              : '',
-            director: eventHeader.director_name || '',
-            noOfGuest: eventHeader.guest || '',
-          },
-          serviceType: determineServiceType(eventDetails),
-          rateMode: determineRateMode(eventDetails),
-          eventItems: [
-            ...eventDetails.food,
-            ...eventDetails.beverages,
-            ...eventDetails.decoration,
-            ...eventDetails.services,
-          ],
-          total: eventHeader.total || '0',
-          advance: eventHeader.advance || '0',
-          functionCode: eventHeader.function_code || '',
-          directorName: eventHeader.director_name || '',
-          orderNo: event.id,
-        };
-
-        navigation.navigate('Quotation', {
-          editData: quotationData,
-          isEditMode: true,
-        });
-
-        Toast.show({
-          type: 'success',
-          text1: 'Data Loaded',
-          text2: 'Form ready for editing',
-        });
-      } else {
-        throw new Error('Failed to fetch event details');
-      }
-    } catch (error) {
-      console.error('Edit event error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Failed to Load',
-        text2: 'Could not load event details',
-      });
-    }
-  };
-
-  const determineServiceType = eventDetails => {
-    const { food, decoration, services } = eventDetails;
-    const hasFood = food.length > 0;
-    const hasDecoration = decoration.length > 0;
-    const hasServices = services.length > 0;
-
-    if (hasFood && hasServices) return 'F+S';
-    if (hasFood && hasDecoration) return 'F+D';
-    if (hasDecoration) return 'D';
-    return 'F';
-  };
-
-  const determineRateMode = eventDetails => {
-    const allItems = [
-      ...eventDetails.food,
-      ...eventDetails.beverages,
-      ...eventDetails.decoration,
-      ...eventDetails.services,
-    ];
-    const hasPerHead = allItems.some(item =>
-      item.description?.toLowerCase().includes('per head'),
-    );
-    return hasPerHead ? 'perhead' : 'perkg';
-  };
-
   const renderEventCard = ({ item }) => {
     return (
       <TouchableOpacity
@@ -725,7 +555,9 @@ const EventCalendarScreen = () => {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.actionButton}
-                onPress={() => handleEditEvent(item)}
+                onPress={() =>
+                  navigation.navigate('Quotation', { eventData: item })
+                }
               >
                 <Icon name="pencil" size={18} color="#FFD700" />
               </TouchableOpacity>

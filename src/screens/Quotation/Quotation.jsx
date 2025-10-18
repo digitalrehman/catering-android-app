@@ -25,6 +25,7 @@ import { Picker } from '@react-native-picker/picker';
 import AppHeader from '../../components/AppHeader';
 import { useSelector } from 'react-redux';
 import styles from './quotationStyle';
+import { useRoute } from '@react-navigation/native';
 
 const DEFAULT_ROWS = 5;
 
@@ -183,7 +184,9 @@ const RadioButtonColumn = memo(({ label, selected, onPress, isRateMode }) => {
         size={18}
         color={selected ? COLORS.ACCENT : COLORS.PRIMARY_DARK}
       />
-      <Text style={selected ? styles.radioColumnTextActive : styles.radioColumnText}>
+      <Text
+        style={selected ? styles.radioColumnTextActive : styles.radioColumnText}
+      >
         {displayLabel}
       </Text>
     </TouchableOpacity>
@@ -192,6 +195,8 @@ const RadioButtonColumn = memo(({ label, selected, onPress, isRateMode }) => {
 
 const Quotation = ({ navigation }) => {
   const user = useSelector(state => state.Data.currentData);
+  const route = useRoute();
+  const { eventData } = route.params || {};
 
   const [clientInfo, setClientInfo] = useState({
     contactNo: '',
@@ -240,7 +245,9 @@ const Quotation = ({ navigation }) => {
     let mounted = true;
     (async () => {
       try {
-        const r = await fetch('https://cat.de2solutions.com/mobile_dash/event_bank.php');
+        const r = await fetch(
+          'https://cat.de2solutions.com/mobile_dash/event_bank.php',
+        );
         const json = await r.json();
         if (mounted && json?.status === 'true') setBanks(json.data || []);
       } catch (e) {
@@ -254,7 +261,9 @@ const Quotation = ({ navigation }) => {
     let mounted = true;
     (async () => {
       try {
-        const r = await fetch('https://cat.de2solutions.com/mobile_dash/director.php');
+        const r = await fetch(
+          'https://cat.de2solutions.com/mobile_dash/director.php',
+        );
         const json = await r.json();
         if (mounted && json?.status === 'true' && Array.isArray(json.data)) {
           setDirectors(json.data);
@@ -266,6 +275,83 @@ const Quotation = ({ navigation }) => {
     return () => (mounted = false);
   }, []);
 
+  const fetchEventDetails = async () => {
+    try {
+      console.log('Editing event:', eventData);
+
+      const formData = new FormData();
+      formData.append('order_no', eventData.id); // 👈 eventData.id = order_no
+
+      const res = await fetch(
+        'https://cat.de2solutions.com/mobile_dash/get_event_food_decor_detail.php',
+        {
+          method: 'POST',
+          body: formData,
+        },
+      );
+
+      const text = await res.text();
+      console.log('Raw response:', text);
+
+      const data = JSON.parse(text);
+      console.log('Parsed event food/decor details:', data);
+
+      // ✅ Food rows
+      if (data.status_food === 'true' && Array.isArray(data.data_food)) {
+        const foodItems = data.data_food.map((item, idx) => ({
+          id: String(idx + 1),
+          menu: item.description || '',
+          qty: String(item.quantity || ''),
+          rate: String(item.unit_price || ''),
+          total: (
+            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)
+          ).toFixed(2),
+          manualTotal: false,
+        }));
+        setFoodRows(foodItems.length ? foodItems : makeDefaultRows(1));
+      }
+
+      // ✅ Decor rows
+      if (
+        data.status_decoration === 'true' &&
+        Array.isArray(data.data_decoration)
+      ) {
+        const decItems = data.data_decoration.map((item, idx) => ({
+          id: String(idx + 1),
+          menu: item.description || '',
+          qty: String(item.quantity || ''),
+          rate: String(item.unit_price || ''),
+          total: (
+            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)
+          ).toFixed(2),
+          manualTotal: false,
+        }));
+        setDecRows(decItems.length ? decItems : makeDefaultRows(6));
+      }
+
+      // ✅ Prefill basic info from eventData
+      setClientInfo({
+        contactNo: eventData.contact_no || '',
+        name: eventData.name || '',
+        venue: eventData.venue || '',
+        dateTime: eventData.date || '',
+        director: eventData.director_id ? String(eventData.director_id) : '',
+        noOfGuest: eventData.guest || '',
+      });
+
+      setManualFoodTotal(eventData.total || '');
+      setCashReceived(eventData.advance || '');
+      setServiceType('F'); // default
+      setRateMode('perhead'); // default
+    } catch (err) {
+      console.log('Error fetching event details:', err);
+    }
+  };
+  useEffect(() => {
+    if (!eventData?.id) return;
+    fetchEventDetails();
+  }, [eventData]);
+
   const updateClientInfo = useCallback((key, value) => {
     setClientInfo(prev => ({ ...prev, [key]: value }));
   }, []);
@@ -273,29 +359,33 @@ const Quotation = ({ navigation }) => {
   /* -------------------------
      update single row more efficiently
      ------------------------- */
-  const updateRow = useCallback((rowsSetter, id, key, value, markManual = false) => {
-    rowsSetter(prev => {
-      const idx = prev.findIndex(r => r.id === id);
-      if (idx === -1) return prev;
-      const next = [...prev];
-      const item = { ...next[idx] };
-      // avoid updating if same value
-      if (item[key] === value) return prev;
-      item[key] = value;
-      if (markManual) item.manualTotal = true;
-      // recalc total when qty/rate and not manual
-      if (!item.manualTotal && (key === 'qty' || key === 'rate')) {
-        const q = parseFloat(item.qty || 0);
-        const rt = parseFloat(item.rate || 0);
-        item.total = !isNaN(q) && !isNaN(rt) ? (q * rt).toFixed(2) : '';
-      }
-      next[idx] = item;
-      return next;
-    });
-  }, []);
+  const updateRow = useCallback(
+    (rowsSetter, id, key, value, markManual = false) => {
+      rowsSetter(prev => {
+        const idx = prev.findIndex(r => r.id === id);
+        if (idx === -1) return prev;
+        const next = [...prev];
+        const item = { ...next[idx] };
+        // avoid updating if same value
+        if (item[key] === value) return prev;
+        item[key] = value;
+        if (markManual) item.manualTotal = true;
+        // recalc total when qty/rate and not manual
+        if (!item.manualTotal && (key === 'qty' || key === 'rate')) {
+          const q = parseFloat(item.qty || 0);
+          const rt = parseFloat(item.rate || 0);
+          item.total = !isNaN(q) && !isNaN(rt) ? (q * rt).toFixed(2) : '';
+        }
+        next[idx] = item;
+        return next;
+      });
+    },
+    [],
+  );
 
   const addRow = useCallback((rows, setRows) => {
-    const nextId = (rows.length ? parseInt(rows[rows.length - 1].id, 10) : 0) + 1;
+    const nextId =
+      (rows.length ? parseInt(rows[rows.length - 1].id, 10) : 0) + 1;
     setRows(prev => [
       ...prev,
       {
@@ -309,7 +399,8 @@ const Quotation = ({ navigation }) => {
     ]);
   }, []);
 
-  const sumTable = rows => rows.reduce((acc, r) => acc + (parseFloat(r.total || 0) || 0), 0);
+  const sumTable = rows =>
+    rows.reduce((acc, r) => acc + (parseFloat(r.total || 0) || 0), 0);
 
   // Calculations
   const guestsCount = Number(clientInfo.noOfGuest) || 0;
@@ -320,12 +411,17 @@ const Quotation = ({ navigation }) => {
   const decAutoTotal = useMemo(() => sumTable(decRows), [decRows]);
 
   // Beverage calculation
-  const beverageRate = beverageType === 'regular' ? 250 : beverageType === 'can' ? 300 : 0;
+  const beverageRate =
+    beverageType === 'regular' ? 250 : beverageType === 'can' ? 300 : 0;
   const beverageTotal = beverageRate * guestsCount;
 
   // Final totals
-  const finalFoodTotal = manualFoodTotal ? parseFloat(manualFoodTotal) : foodAutoTotal + foodOwnerTotal;
-  const finalDecTotal = manualDecTotal ? parseFloat(manualDecTotal) : decAutoTotal + decOwnerTotal;
+  const finalFoodTotal = manualFoodTotal
+    ? parseFloat(manualFoodTotal)
+    : foodAutoTotal + foodOwnerTotal;
+  const finalDecTotal = manualDecTotal
+    ? parseFloat(manualDecTotal)
+    : decAutoTotal + decOwnerTotal;
   const grandTotal = finalFoodTotal + finalDecTotal + beverageTotal;
 
   // Advance / balance
@@ -369,8 +465,17 @@ const Quotation = ({ navigation }) => {
      Save handler (keeps sales_order_details with text1)
      ------------------------- */
   const handleSave = async () => {
-    if (!clientInfo.contactNo || !clientInfo.name || !clientInfo.venue || !rateMode || !serviceType) {
-      Alert.alert('Missing Information', 'Please fill all client details before saving.');
+    if (
+      !clientInfo.contactNo ||
+      !clientInfo.name ||
+      !clientInfo.venue ||
+      !rateMode ||
+      !serviceType
+    ) {
+      Alert.alert(
+        'Missing Information',
+        'Please fill all client details before saving.',
+      );
       return;
     }
 
@@ -405,27 +510,31 @@ const Quotation = ({ navigation }) => {
       const salesOrderDetails = [];
 
       // Food rows (text1: 'F')
-      foodRows.filter(r => r.menu).forEach(r => {
-        salesOrderDetails.push({
-          description: r.menu,
-          quantity: r.qty && r.qty.trim() !== '' ? r.qty : '0',
-          unit_price: r.rate && r.rate.trim() !== '' ? r.rate : '0',
-          text1: 'F',
+      foodRows
+        .filter(r => r.menu)
+        .forEach(r => {
+          salesOrderDetails.push({
+            description: r.menu,
+            quantity: r.qty && r.qty.trim() !== '' ? r.qty : '0',
+            unit_price: r.rate && r.rate.trim() !== '' ? r.rate : '0',
+            text1: 'F',
+          });
         });
-      });
 
       // Decoration / Services rows (text1: 'D' or 'S' depending on serviceType usage)
-      decRows.filter(r => r.menu).forEach(r => {
-        // If screen is F+S we store decRows as services (text1 S),
-        // otherwise as decoration (text1 D)
-        const text1 = serviceType === 'F+S' ? 'S' : 'D';
-        salesOrderDetails.push({
-          description: r.menu,
-          quantity: r.qty && r.qty.trim() !== '' ? r.qty : '0',
-          unit_price: r.rate && r.rate.trim() !== '' ? r.rate : '0',
-          text1,
+      decRows
+        .filter(r => r.menu)
+        .forEach(r => {
+          // If screen is F+S we store decRows as services (text1 S),
+          // otherwise as decoration (text1 D)
+          const text1 = serviceType === 'F+S' ? 'S' : 'D';
+          salesOrderDetails.push({
+            description: r.menu,
+            quantity: r.qty && r.qty.trim() !== '' ? r.qty : '0',
+            unit_price: r.rate && r.rate.trim() !== '' ? r.rate : '0',
+            text1,
+          });
         });
-      });
 
       // Per-head items
       if (rateMode === 'perhead') {
@@ -440,7 +549,10 @@ const Quotation = ({ navigation }) => {
 
         if (decOwnerAmount && parseFloat(decOwnerAmount) > 0) {
           salesOrderDetails.push({
-            description: serviceType === 'F+S' ? 'Services Per Head' : 'Decoration Per Head',
+            description:
+              serviceType === 'F+S'
+                ? 'Services Per Head'
+                : 'Decoration Per Head',
             quantity: clientInfo.noOfGuest || '0',
             unit_price: decOwnerAmount,
             text1: serviceType === 'F+S' ? 'S' : 'D',
@@ -448,7 +560,10 @@ const Quotation = ({ navigation }) => {
         }
 
         if (beverageType !== 'none') {
-          const beverageDesc = beverageType === 'regular' ? 'Beverages Per Head Regular' : 'Beverages Per Head Can';
+          const beverageDesc =
+            beverageType === 'regular'
+              ? 'Beverages Per Head Regular'
+              : 'Beverages Per Head Can';
           salesOrderDetails.push({
             description: beverageDesc,
             quantity: clientInfo.noOfGuest || '0',
@@ -459,14 +574,20 @@ const Quotation = ({ navigation }) => {
       }
 
       if (salesOrderDetails.length > 0) {
-        formData.append('sales_order_details', JSON.stringify(salesOrderDetails));
+        formData.append(
+          'sales_order_details',
+          JSON.stringify(salesOrderDetails),
+        );
       }
 
-      const response = await fetch('https://cat.de2solutions.com/mobile_dash/post_event_quotation.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'multipart/form-data' },
-        body: formData,
-      });
+      const response = await fetch(
+        'https://cat.de2solutions.com/mobile_dash/post_event_quotation.php',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'multipart/form-data' },
+          body: formData,
+        },
+      );
 
       const responseText = await response.text();
       let responseData = null;
@@ -487,7 +608,10 @@ const Quotation = ({ navigation }) => {
           },
         ]);
       } else {
-        Alert.alert('Error', responseData?.message || 'Failed to save. Please try again.');
+        Alert.alert(
+          'Error',
+          responseData?.message || 'Failed to save. Please try again.',
+        );
       }
     } catch (error) {
       console.error('Save error details:', error);
@@ -520,10 +644,14 @@ const Quotation = ({ navigation }) => {
 
         <View style={styles.headerRow}>
           <Text style={[styles.headerCell, { flex: COL_FLEX.s_no }]}>S#</Text>
-          <Text style={[styles.headerCell, { flex: COL_FLEX.menu }]}>Detail</Text>
+          <Text style={[styles.headerCell, { flex: COL_FLEX.menu }]}>
+            Detail
+          </Text>
           <Text style={[styles.headerCell, { flex: COL_FLEX.qty }]}>Qty</Text>
           <Text style={[styles.headerCell, { flex: COL_FLEX.rate }]}>Rate</Text>
-          <Text style={[styles.headerCell, { flex: COL_FLEX.total }]}>Total</Text>
+          <Text style={[styles.headerCell, { flex: COL_FLEX.total }]}>
+            Total
+          </Text>
         </View>
 
         <FlatList
@@ -560,7 +688,9 @@ const Quotation = ({ navigation }) => {
             <TextInput
               value={tableName === 'food' ? foodOwnerAmount : decOwnerAmount}
               onChangeText={t =>
-                tableName === 'food' ? setFoodOwnerAmount(t) : setDecOwnerAmount(t)
+                tableName === 'food'
+                  ? setFoodOwnerAmount(t)
+                  : setDecOwnerAmount(t)
               }
               placeholder="0"
               keyboardType="numeric"
@@ -569,65 +699,73 @@ const Quotation = ({ navigation }) => {
             />
           </View>
 
-          {tableName === 'food'
-            ? (
-              <View style={styles.totalInlineRow}>
-                <Text style={styles.totalLabelSmall}>Food Total:</Text>
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={[
-                    styles.totalCellSmall,
-                    editingCell === 'food-table-total' && {
-                      borderColor: COLORS.ACCENT,
-                      borderWidth: 2,
-                    },
-                  ]}
-                  onPress={() => setEditingCell('food-table-total')}
-                >
-                  {editingCell === 'food-table-total' ? (
-                    <TextInput
-                      autoFocus
-                      value={manualFoodTotal}
-                      onChangeText={setManualFoodTotal}
-                      keyboardType="numeric"
-                      onBlur={() => setEditingCell(null)}
-                      style={styles.totalInputSmall}
-                    />
-                  ) : (
-                    <Text style={styles.totalValueSmall}>{manualFoodTotal || String(Math.round(autoTotal + Math.round(foodOwnerTotal)))}</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )
-            : (
-              <View style={styles.totalInlineRow}>
-                <Text style={styles.totalLabelSmall}>{serviceType === 'F+S' ? 'Services Total' : 'Decor Total'}:</Text>
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={[
-                    styles.totalCellSmall,
-                    editingCell === 'dec-table-total' && {
-                      borderColor: COLORS.ACCENT,
-                      borderWidth: 2,
-                    },
-                  ]}
-                  onPress={() => setEditingCell('dec-table-total')}
-                >
-                  {editingCell === 'dec-table-total' ? (
-                    <TextInput
-                      autoFocus
-                      value={manualDecTotal}
-                      onChangeText={setManualDecTotal}
-                      keyboardType="numeric"
-                      onBlur={() => setEditingCell(null)}
-                      style={styles.totalInputSmall}
-                    />
-                  ) : (
-                    <Text style={styles.totalValueSmall}>{manualDecTotal || String(Math.round(autoTotal + Math.round(decOwnerTotal)))}</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
+          {tableName === 'food' ? (
+            <View style={styles.totalInlineRow}>
+              <Text style={styles.totalLabelSmall}>Food Total:</Text>
+              <TouchableOpacity
+                activeOpacity={1}
+                style={[
+                  styles.totalCellSmall,
+                  editingCell === 'food-table-total' && {
+                    borderColor: COLORS.ACCENT,
+                    borderWidth: 2,
+                  },
+                ]}
+                onPress={() => setEditingCell('food-table-total')}
+              >
+                {editingCell === 'food-table-total' ? (
+                  <TextInput
+                    autoFocus
+                    value={manualFoodTotal}
+                    onChangeText={setManualFoodTotal}
+                    keyboardType="numeric"
+                    onBlur={() => setEditingCell(null)}
+                    style={styles.totalInputSmall}
+                  />
+                ) : (
+                  <Text style={styles.totalValueSmall}>
+                    {manualFoodTotal ||
+                      String(
+                        Math.round(autoTotal + Math.round(foodOwnerTotal)),
+                      )}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.totalInlineRow}>
+              <Text style={styles.totalLabelSmall}>
+                {serviceType === 'F+S' ? 'Services Total' : 'Decor Total'}:
+              </Text>
+              <TouchableOpacity
+                activeOpacity={1}
+                style={[
+                  styles.totalCellSmall,
+                  editingCell === 'dec-table-total' && {
+                    borderColor: COLORS.ACCENT,
+                    borderWidth: 2,
+                  },
+                ]}
+                onPress={() => setEditingCell('dec-table-total')}
+              >
+                {editingCell === 'dec-table-total' ? (
+                  <TextInput
+                    autoFocus
+                    value={manualDecTotal}
+                    onChangeText={setManualDecTotal}
+                    keyboardType="numeric"
+                    onBlur={() => setEditingCell(null)}
+                    style={styles.totalInputSmall}
+                  />
+                ) : (
+                  <Text style={styles.totalValueSmall}>
+                    {manualDecTotal ||
+                      String(Math.round(autoTotal + Math.round(decOwnerTotal)))}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </View>
     );
@@ -638,7 +776,11 @@ const Quotation = ({ navigation }) => {
     try {
       const d = new Date(isoString);
       const datePart = d.toLocaleDateString();
-      const timePart = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      const timePart = d.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
       return `${datePart} ${timePart}`;
     } catch (e) {
       return isoString;
@@ -648,7 +790,9 @@ const Quotation = ({ navigation }) => {
   // Date/time picker handlers (inline)
   const openDatePicker = mode => {
     setDatePickerMode(mode);
-    setTempDate(clientInfo.dateTime ? new Date(clientInfo.dateTime) : new Date());
+    setTempDate(
+      clientInfo.dateTime ? new Date(clientInfo.dateTime) : new Date(),
+    );
     setShowDatePicker(true);
   };
 
@@ -692,7 +836,10 @@ const Quotation = ({ navigation }) => {
   return (
     <View style={styles.screen}>
       <AppHeader title="Quotation" />
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Client Information Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Client Information</Text>
@@ -721,8 +868,15 @@ const Quotation = ({ navigation }) => {
                 style={[styles.input, { justifyContent: 'center' }]}
                 onPress={() => openDatePicker('date')}
               >
-                <Text style={{ color: clientInfo.dateTime ? COLORS.DARK : '#b0b0b0', fontSize: 14 }}>
-                  {clientInfo.dateTime ? formatDisplayDate(clientInfo.dateTime) : 'Date & Time'}
+                <Text
+                  style={{
+                    color: clientInfo.dateTime ? COLORS.DARK : '#b0b0b0',
+                    fontSize: 14,
+                  }}
+                >
+                  {clientInfo.dateTime
+                    ? formatDisplayDate(clientInfo.dateTime)
+                    : 'Date & Time'}
                 </Text>
               </TouchableOpacity>
               <TextInput
@@ -736,16 +890,29 @@ const Quotation = ({ navigation }) => {
             </View>
 
             <View style={styles.inputRow}>
-              <View style={[styles.input, { padding: 0, justifyContent: 'center' }]}>
+              <View
+                style={[styles.input, { padding: 0, justifyContent: 'center' }]}
+              >
                 <Picker
                   selectedValue={clientInfo.director}
                   onValueChange={value => updateClientInfo('director', value)}
                   dropdownIconColor={COLORS.PRIMARY_DARK}
-                  style={{ color: clientInfo.director ? COLORS.DARK : '#b0b0b0', fontSize: 14 }}
+                  style={{
+                    color: clientInfo.director ? COLORS.DARK : '#b0b0b0',
+                    fontSize: 14,
+                  }}
                 >
-                  <Picker.Item label="Select Director" value="" color="#b0b0b0" />
+                  <Picker.Item
+                    label="Select Director"
+                    value=""
+                    color="#b0b0b0"
+                  />
                   {directors.map(d => (
-                    <Picker.Item key={d.combo_code} label={d.description} value={d.combo_code} />
+                    <Picker.Item
+                      key={d.combo_code}
+                      label={d.description}
+                      value={d.combo_code}
+                    />
                   ))}
                 </Picker>
               </View>
@@ -765,7 +932,13 @@ const Quotation = ({ navigation }) => {
             <DateTimePicker
               value={tempDate}
               mode={datePickerMode}
-              display={Platform.OS === 'android' ? (datePickerMode === 'date' ? 'calendar' : 'clock') : 'spinner'}
+              display={
+                Platform.OS === 'android'
+                  ? datePickerMode === 'date'
+                    ? 'calendar'
+                    : 'clock'
+                  : 'spinner'
+              }
               onChange={onDateChange}
               is24Hour={false}
             />
@@ -797,7 +970,13 @@ const Quotation = ({ navigation }) => {
           <>
             {serviceType === 'F' && (
               <>
-                {renderTable(foodRows, setFoodRows, 'Food Details', foodAutoTotal, 'food')}
+                {renderTable(
+                  foodRows,
+                  setFoodRows,
+                  'Food Details',
+                  foodAutoTotal,
+                  'food',
+                )}
 
                 <View style={styles.section}>
                   <View style={styles.sectionHeaderRow}>
@@ -806,35 +985,84 @@ const Quotation = ({ navigation }) => {
 
                   <View style={styles.beverageRow}>
                     <TouchableOpacity
-                      style={[styles.checkboxOption, beverageType === 'regular' ? styles.checkboxOptionActive : null]}
-                      onPress={() => setBeverageType(prev => (prev === 'regular' ? 'none' : 'regular'))}
+                      style={[
+                        styles.checkboxOption,
+                        beverageType === 'regular'
+                          ? styles.checkboxOptionActive
+                          : null,
+                      ]}
+                      onPress={() =>
+                        setBeverageType(prev =>
+                          prev === 'regular' ? 'none' : 'regular',
+                        )
+                      }
                     >
-                      <Ionicons name={beverageType === 'regular' ? 'checkbox' : 'square-outline'} size={18} color={COLORS.PRIMARY_DARK} />
-                      <Text style={styles.checkboxLabel}>Regular (Rs. 250)</Text>
+                      <Ionicons
+                        name={
+                          beverageType === 'regular'
+                            ? 'checkbox'
+                            : 'square-outline'
+                        }
+                        size={18}
+                        color={COLORS.PRIMARY_DARK}
+                      />
+                      <Text style={styles.checkboxLabel}>
+                        Regular (Rs. 250)
+                      </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.checkboxOption, beverageType === 'can' ? styles.checkboxOptionActive : null]}
-                      onPress={() => setBeverageType(prev => (prev === 'can' ? 'none' : 'can'))}
+                      style={[
+                        styles.checkboxOption,
+                        beverageType === 'can'
+                          ? styles.checkboxOptionActive
+                          : null,
+                      ]}
+                      onPress={() =>
+                        setBeverageType(prev =>
+                          prev === 'can' ? 'none' : 'can',
+                        )
+                      }
                     >
-                      <Ionicons name={beverageType === 'can' ? 'checkbox' : 'square-outline'} size={18} color={COLORS.PRIMARY_DARK} />
+                      <Ionicons
+                        name={
+                          beverageType === 'can' ? 'checkbox' : 'square-outline'
+                        }
+                        size={18}
+                        color={COLORS.PRIMARY_DARK}
+                      />
                       <Text style={styles.checkboxLabel}>Can (Rs. 300)</Text>
                     </TouchableOpacity>
                   </View>
 
                   <View style={styles.beverageTotalRow}>
                     <Text style={styles.totalLabelSmall}>Beverage Total:</Text>
-                    <Text style={styles.totalValueSmall}>Rs. {Math.round(beverageTotal)}</Text>
+                    <Text style={styles.totalValueSmall}>
+                      Rs. {Math.round(beverageTotal)}
+                    </Text>
                   </View>
                 </View>
               </>
             )}
 
-            {serviceType === 'D' && renderTable(decRows, setDecRows, 'Decoration Details', decAutoTotal, 'dec')}
+            {serviceType === 'D' &&
+              renderTable(
+                decRows,
+                setDecRows,
+                'Decoration Details',
+                decAutoTotal,
+                'dec',
+              )}
 
             {serviceType === 'F+D' && (
               <>
-                {renderTable(foodRows, setFoodRows, 'Food Details', foodAutoTotal, 'food')}
+                {renderTable(
+                  foodRows,
+                  setFoodRows,
+                  'Food Details',
+                  foodAutoTotal,
+                  'food',
+                )}
 
                 <View style={styles.section}>
                   <View style={styles.sectionHeaderRow}>
@@ -843,35 +1071,83 @@ const Quotation = ({ navigation }) => {
 
                   <View style={styles.beverageRow}>
                     <TouchableOpacity
-                      style={[styles.checkboxOption, beverageType === 'regular' ? styles.checkboxOptionActive : null]}
-                      onPress={() => setBeverageType(prev => (prev === 'regular' ? 'none' : 'regular'))}
+                      style={[
+                        styles.checkboxOption,
+                        beverageType === 'regular'
+                          ? styles.checkboxOptionActive
+                          : null,
+                      ]}
+                      onPress={() =>
+                        setBeverageType(prev =>
+                          prev === 'regular' ? 'none' : 'regular',
+                        )
+                      }
                     >
-                      <Ionicons name={beverageType === 'regular' ? 'checkbox' : 'square-outline'} size={18} color={COLORS.PRIMARY_DARK} />
-                      <Text style={styles.checkboxLabel}>Regular (Rs. 250)</Text>
+                      <Ionicons
+                        name={
+                          beverageType === 'regular'
+                            ? 'checkbox'
+                            : 'square-outline'
+                        }
+                        size={18}
+                        color={COLORS.PRIMARY_DARK}
+                      />
+                      <Text style={styles.checkboxLabel}>
+                        Regular (Rs. 250)
+                      </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.checkboxOption, beverageType === 'can' ? styles.checkboxOptionActive : null]}
-                      onPress={() => setBeverageType(prev => (prev === 'can' ? 'none' : 'can'))}
+                      style={[
+                        styles.checkboxOption,
+                        beverageType === 'can'
+                          ? styles.checkboxOptionActive
+                          : null,
+                      ]}
+                      onPress={() =>
+                        setBeverageType(prev =>
+                          prev === 'can' ? 'none' : 'can',
+                        )
+                      }
                     >
-                      <Ionicons name={beverageType === 'can' ? 'checkbox' : 'square-outline'} size={18} color={COLORS.PRIMARY_DARK} />
+                      <Ionicons
+                        name={
+                          beverageType === 'can' ? 'checkbox' : 'square-outline'
+                        }
+                        size={18}
+                        color={COLORS.PRIMARY_DARK}
+                      />
                       <Text style={styles.checkboxLabel}>Can (Rs. 300)</Text>
                     </TouchableOpacity>
                   </View>
 
                   <View style={styles.beverageTotalRow}>
                     <Text style={styles.totalLabelSmall}>Beverage Total:</Text>
-                    <Text style={styles.totalValueSmall}>Rs. {Math.round(beverageTotal)}</Text>
+                    <Text style={styles.totalValueSmall}>
+                      Rs. {Math.round(beverageTotal)}
+                    </Text>
                   </View>
                 </View>
 
-                {renderTable(decRows, setDecRows, 'Decoration Details', decAutoTotal, 'dec')}
+                {renderTable(
+                  decRows,
+                  setDecRows,
+                  'Decoration Details',
+                  decAutoTotal,
+                  'dec',
+                )}
               </>
             )}
 
             {serviceType === 'F+S' && (
               <>
-                {renderTable(foodRows, setFoodRows, 'Food Details', foodAutoTotal, 'food')}
+                {renderTable(
+                  foodRows,
+                  setFoodRows,
+                  'Food Details',
+                  foodAutoTotal,
+                  'food',
+                )}
 
                 <View style={styles.section}>
                   <View style={styles.sectionHeaderRow}>
@@ -880,38 +1156,86 @@ const Quotation = ({ navigation }) => {
 
                   <View style={styles.beverageRow}>
                     <TouchableOpacity
-                      style={[styles.checkboxOption, beverageType === 'regular' ? styles.checkboxOptionActive : null]}
-                      onPress={() => setBeverageType(prev => (prev === 'regular' ? 'none' : 'regular'))}
+                      style={[
+                        styles.checkboxOption,
+                        beverageType === 'regular'
+                          ? styles.checkboxOptionActive
+                          : null,
+                      ]}
+                      onPress={() =>
+                        setBeverageType(prev =>
+                          prev === 'regular' ? 'none' : 'regular',
+                        )
+                      }
                     >
-                      <Ionicons name={beverageType === 'regular' ? 'checkbox' : 'square-outline'} size={18} color={COLORS.PRIMARY_DARK} />
-                      <Text style={styles.checkboxLabel}>Regular (Rs. 250)</Text>
+                      <Ionicons
+                        name={
+                          beverageType === 'regular'
+                            ? 'checkbox'
+                            : 'square-outline'
+                        }
+                        size={18}
+                        color={COLORS.PRIMARY_DARK}
+                      />
+                      <Text style={styles.checkboxLabel}>
+                        Regular (Rs. 250)
+                      </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.checkboxOption, beverageType === 'can' ? styles.checkboxOptionActive : null]}
-                      onPress={() => setBeverageType(prev => (prev === 'can' ? 'none' : 'can'))}
+                      style={[
+                        styles.checkboxOption,
+                        beverageType === 'can'
+                          ? styles.checkboxOptionActive
+                          : null,
+                      ]}
+                      onPress={() =>
+                        setBeverageType(prev =>
+                          prev === 'can' ? 'none' : 'can',
+                        )
+                      }
                     >
-                      <Ionicons name={beverageType === 'can' ? 'checkbox' : 'square-outline'} size={18} color={COLORS.PRIMARY_DARK} />
+                      <Ionicons
+                        name={
+                          beverageType === 'can' ? 'checkbox' : 'square-outline'
+                        }
+                        size={18}
+                        color={COLORS.PRIMARY_DARK}
+                      />
                       <Text style={styles.checkboxLabel}>Can (Rs. 300)</Text>
                     </TouchableOpacity>
                   </View>
 
                   <View style={styles.beverageTotalRow}>
                     <Text style={styles.totalLabelSmall}>Beverage Total:</Text>
-                    <Text style={styles.totalValueSmall}>Rs. {Math.round(beverageTotal)}</Text>
+                    <Text style={styles.totalValueSmall}>
+                      Rs. {Math.round(beverageTotal)}
+                    </Text>
                   </View>
                 </View>
 
-                {renderTable(decRows, setDecRows, 'Services Details', decAutoTotal, 'dec')}
+                {renderTable(
+                  decRows,
+                  setDecRows,
+                  'Services Details',
+                  decAutoTotal,
+                  'dec',
+                )}
               </>
             )}
 
             {rateMode === 'perhead' && (
               <View style={[styles.section, { padding: 12 }]}>
                 <Text style={styles.totalLabel}>Special Instructions</Text>
-                <TouchableOpacity activeOpacity={1} onPress={() => setPerHeadExpanded(v => !v)}>
+                <TouchableOpacity
+                  activeOpacity={1}
+                  onPress={() => setPerHeadExpanded(v => !v)}
+                >
                   <TextInput
-                    style={[styles.perHeadInfoInput, perHeadExpanded ? styles.perHeadExpanded : null]}
+                    style={[
+                      styles.perHeadInfoInput,
+                      perHeadExpanded ? styles.perHeadExpanded : null,
+                    ]}
                     placeholder="Enter specific per-head menu or notes here..."
                     placeholderTextColor="#666"
                     multiline
@@ -927,7 +1251,9 @@ const Quotation = ({ navigation }) => {
 
             <View style={styles.grandTotalRow}>
               <Text style={styles.grandLabel}>Grand Total</Text>
-              <Text style={styles.grandValue}>Rs. {Math.round(grandTotal)}</Text>
+              <Text style={styles.grandValue}>
+                Rs. {Math.round(grandTotal)}
+              </Text>
             </View>
 
             <View style={styles.section}>
@@ -935,17 +1261,39 @@ const Quotation = ({ navigation }) => {
 
               <View style={styles.advanceRow}>
                 <TouchableOpacity
-                  style={[styles.advanceOption, advanceMode === 'cash' ? styles.advanceOptionActive : null]}
+                  style={[
+                    styles.advanceOption,
+                    advanceMode === 'cash' ? styles.advanceOptionActive : null,
+                  ]}
                   onPress={() => setAdvanceMode('cash')}
                 >
-                  <Text style={advanceMode === 'cash' ? styles.advanceTextActive : styles.advanceText}>Cash</Text>
+                  <Text
+                    style={
+                      advanceMode === 'cash'
+                        ? styles.advanceTextActive
+                        : styles.advanceText
+                    }
+                  >
+                    Cash
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.advanceOption, advanceMode === 'bank' ? styles.advanceOptionActive : null]}
+                  style={[
+                    styles.advanceOption,
+                    advanceMode === 'bank' ? styles.advanceOptionActive : null,
+                  ]}
                   onPress={() => setAdvanceMode('bank')}
                 >
-                  <Text style={advanceMode === 'bank' ? styles.advanceTextActive : styles.advanceText}>Bank</Text>
+                  <Text
+                    style={
+                      advanceMode === 'bank'
+                        ? styles.advanceTextActive
+                        : styles.advanceText
+                    }
+                  >
+                    Bank
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -966,19 +1314,37 @@ const Quotation = ({ navigation }) => {
               {advanceMode === 'bank' && (
                 <>
                   <View style={styles.bankDisplayRow}>
-                    <Text style={styles.bankNameText}>Selected Bank: {bankSelected}</Text>
+                    <Text style={styles.bankNameText}>
+                      Selected Bank: {bankSelected}
+                    </Text>
                   </View>
 
-                  <View style={[styles.input, { padding: 0, justifyContent: 'center' }]}>
+                  <View
+                    style={[
+                      styles.input,
+                      { padding: 0, justifyContent: 'center' },
+                    ]}
+                  >
                     <Picker
                       selectedValue={bankSelected}
                       onValueChange={value => setBankSelected(value)}
                       dropdownIconColor={COLORS.PRIMARY_DARK}
-                      style={{ color: bankSelected ? COLORS.DARK : '#b0b0b0', fontSize: 14 }}
+                      style={{
+                        color: bankSelected ? COLORS.DARK : '#b0b0b0',
+                        fontSize: 14,
+                      }}
                     >
-                      <Picker.Item label="Select Bank" value="" color="#b0b0b0" />
+                      <Picker.Item
+                        label="Select Bank"
+                        value=""
+                        color="#b0b0b0"
+                      />
                       {banks.map(b => (
-                        <Picker.Item key={b.id} label={b.bank_account_name} value={b.id} />
+                        <Picker.Item
+                          key={b.id}
+                          label={b.bank_account_name}
+                          value={b.id}
+                        />
                       ))}
                     </Picker>
                   </View>
@@ -999,13 +1365,18 @@ const Quotation = ({ navigation }) => {
 
               <View style={[styles.advanceInputRow, { marginTop: 10 }]}>
                 <Text style={styles.totalLabelSmall}>Remaining Balance:</Text>
-                <Text style={styles.totalValueSmall}>Rs. {Math.round(remainingBalance)}</Text>
+                <Text style={styles.totalValueSmall}>
+                  Rs. {Math.round(remainingBalance)}
+                </Text>
               </View>
             </View>
           </>
         ) : (
           <View style={styles.section}>
-            <Text style={styles.modeNoteText}>Please select Per Head or Per KG and Service Type to view/fill quotation details.</Text>
+            <Text style={styles.modeNoteText}>
+              Please select Per Head or Per KG and Service Type to view/fill
+              quotation details.
+            </Text>
           </View>
         )}
 
