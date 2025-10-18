@@ -8,10 +8,8 @@ import {
   Animated,
   StatusBar,
   Image,
-  Alert,
   PermissionsAndroid,
   Platform,
-  Share,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Calendar } from 'react-native-calendars';
@@ -19,7 +17,10 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import AppHeader from '../../components/AppHeader';
 import Toast from 'react-native-toast-message';
+import { encode as btoa } from 'base-64';
 import RNFetchBlob from 'react-native-blob-util';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import Share from 'react-native-share';
 
 // PDF Component for better reusability
 const PDFGenerator = {
@@ -391,45 +392,6 @@ const PDFGenerator = {
   },
 };
 
-// Base64 encoding function for React Native
-const base64Encode = str => {
-  try {
-    // Using btoa for base64 encoding (available in React Native)
-    return btoa(unescape(encodeURIComponent(str)));
-  } catch (error) {
-    console.error('Base64 encoding error:', error);
-    // Fallback: simple base64 encoding
-    const base64Chars =
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    let result = '';
-    let i = 0;
-
-    while (i < str.length) {
-      const a = str.charCodeAt(i++);
-      const b = str.charCodeAt(i++);
-      const c = str.charCodeAt(i++);
-
-      const bitmap = (a << 16) | (b << 8) | c;
-
-      result +=
-        base64Chars.charAt((bitmap >> 18) & 63) +
-        base64Chars.charAt((bitmap >> 12) & 63) +
-        base64Chars.charAt((bitmap >> 6) & 63) +
-        base64Chars.charAt(bitmap & 63);
-    }
-
-    // Pad with '=' if necessary
-    const padding = str.length % 3;
-    if (padding === 1) {
-      return result.slice(0, -2) + '==';
-    } else if (padding === 2) {
-      return result.slice(0, -1) + '=';
-    }
-
-    return result;
-  }
-};
-
 const EventCalendarScreen = () => {
   const navigation = useNavigation();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -657,7 +619,110 @@ const EventCalendarScreen = () => {
       throw error;
     }
   };
+  const generatePDFContent = async (event, eventDetails) => {
+    try {
+      const {
+        food = [],
+        beverages = [],
+        decoration = [],
+        services = [],
+      } = eventDetails;
+      const totalAmount = parseFloat(event.total || 0);
+      const advanceAmount = parseFloat(event.advance || 0);
+      const balanceAmount = totalAmount - advanceAmount;
 
+      // PDF content ko text format mein generate karenge
+      let pdfContent = `
+QUOTATION
+CATERING SERVICES
+
+Client Information:
+Party Name: ${event.name}
+Contact: ${event.contact_no}
+Venue: ${event.venue}
+Director Name: ${event.originalData?.director_name || 'N/A'}
+
+Event Details:
+Guests: ${event.guest}
+Date: ${event.date}
+Time: ${event.time || 'N/A'}
+Function Code: ${event.function_code}
+
+Services & Items:
+`;
+
+      // Food items
+      if (food.length > 0) {
+        pdfContent += '\nFOOD:\n';
+        food.forEach((item, index) => {
+          pdfContent += `${index + 1}. ${item.description || 'N/A'} | Qty: ${
+            item.quantity || '0'
+          } | Rate: Rs. ${parseFloat(item.unit_price || 0).toFixed(
+            2,
+          )} | Amount: Rs. ${(
+            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)
+          ).toFixed(2)}\n`;
+        });
+      }
+
+      // Beverages items
+      if (beverages.length > 0) {
+        pdfContent += '\nBEVERAGES:\n';
+        beverages.forEach((item, index) => {
+          pdfContent += `${index + 1}. ${item.description || 'N/A'} | Qty: ${
+            item.quantity || '0'
+          } | Rate: Rs. ${parseFloat(item.unit_price || 0).toFixed(
+            2,
+          )} | Amount: Rs. ${(
+            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)
+          ).toFixed(2)}\n`;
+        });
+      }
+
+      // Decoration items
+      if (decoration.length > 0) {
+        pdfContent += '\nDECORATION:\n';
+        decoration.forEach((item, index) => {
+          pdfContent += `${index + 1}. ${item.description || 'N/A'} | Qty: ${
+            item.quantity || '0'
+          } | Rate: Rs. ${parseFloat(item.unit_price || 0).toFixed(
+            2,
+          )} | Amount: Rs. ${(
+            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)
+          ).toFixed(2)}\n`;
+        });
+      }
+
+      // Services items
+      if (services.length > 0) {
+        pdfContent += '\nSERVICES:\n';
+        services.forEach((item, index) => {
+          pdfContent += `${index + 1}. ${item.description || 'N/A'} | Qty: ${
+            item.quantity || '0'
+          } | Rate: Rs. ${parseFloat(item.unit_price || 0).toFixed(
+            2,
+          )} | Amount: Rs. ${(
+            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)
+          ).toFixed(2)}\n`;
+        });
+      }
+
+      pdfContent += `
+\nTotal Amount: Rs. ${totalAmount.toFixed(2)}
+Advance Paid: Rs. ${advanceAmount.toFixed(2)}
+Balance Due: Rs. ${balanceAmount.toFixed(2)}
+
+Thank you for your business!
+Prepared By: ${event.originalData?.salesman_name || 'Sales Team'}
+Date: ${new Date().toLocaleDateString()}
+    `;
+
+      return pdfContent;
+    } catch (error) {
+      console.error('PDF content generation error:', error);
+      throw error;
+    }
+  };
   const handleDirectShare = async event => {
     try {
       Toast.show({
@@ -667,128 +732,319 @@ const EventCalendarScreen = () => {
       });
 
       const eventDetails = await fetchEventDetails(event.id);
-      const pdfContent = await generatePDFContent(event, eventDetails);
+      const pdfPath = await generatePDFFile(event, eventDetails);
 
-      // PDF file create karenge
-      const fileName = `Quotation_${event.name.replace(/\s+/g, '_')}_${
-        event.function_code
-      }.pdf`;
+      const exists = await RNFetchBlob.fs.exists(pdfPath);
+      if (!exists) throw new Error('PDF file not found');
 
-      let filePath;
-      if (Platform.OS === 'android') {
-        const downloadDir = RNFetchBlob.fs.dirs.DownloadDir;
-        filePath = `${downloadDir}/${fileName}`;
+      let fileUrl = `file://${pdfPath.replace('file://', '')}`;
 
-        // PDF content ko file mein save karenge
-        await RNFetchBlob.fs.writeFile(filePath, pdfContent, 'utf8');
-      } else {
-        const documentDir = RNFetchBlob.fs.dirs.DocumentDir;
-        filePath = `${documentDir}/${fileName}`;
-        await RNFetchBlob.fs.writeFile(filePath, pdfContent, 'utf8');
-      }
-
-      // Share karenge
       const shareOptions = {
-        title: `Quotation - ${event.name}`,
-        message: `Quotation for ${event.name}`,
-        url: `file://${filePath}`,
+        title: `Quotation for ${event.name}`,
+        url: fileUrl,
         type: 'application/pdf',
+        message: `Quotation for ${event.name}`,
+        failOnCancel: false,
       };
 
-      await Share.share(shareOptions);
+      await Share.open(shareOptions);
+      Toast.show({ type: 'success', text1: 'Quotation shared successfully!' });
     } catch (error) {
       console.error('Share error:', error);
       Toast.show({
         type: 'error',
-        text1: 'Share Failed',
-        text2: 'Please try again',
+        text1: 'Failed to share PDF',
+        text2: error.message || 'Please try again',
       });
     }
   };
+const generatePDFFile = async (event, eventDetails) => {
+  const { food = [], beverages = [], decoration = [], services = [] } = eventDetails;
 
-  const handleDownloadPDF = async event => {
-    try {
-      Toast.show({
-        type: 'info',
-        text1: 'Generating Quotation',
-        text2: 'Please wait...',
-      });
+  const totalAmount = parseFloat(event.total || 0);
+  const advanceAmount = parseFloat(event.advance || 0);
+  const balanceAmount = totalAmount - advanceAmount;
 
-      const eventDetails = await fetchEventDetails(event.id);
-      const htmlContent = await generateHTMLContent(event, eventDetails);
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595.28, 841.89]); // A4
+  const { width, height } = page.getSize();
 
-      const hasPermission = await requestStoragePermission();
-      if (!hasPermission) {
-        throw new Error('Storage permission denied');
-      }
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  let y = height - 50;
 
-      const fileName = `Quotation_${event.name.replace(/\s+/g, '_')}_${
-        event.function_code
-      }.html`;
+  const drawText = (text, x, y, size = 11, bold = false, color = rgb(0, 0, 0)) => {
+    page.drawText(String(text || ""), {
+      x,
+      y,
+      size,
+      font: bold ? fontBold : font,
+      color,
+    });
+  };
 
-      let filePath;
+  const addSpace = (space = 14) => { y -= space; };
 
-      if (Platform.OS === 'android') {
-        const downloadDir = RNFetchBlob.fs.dirs.DownloadDir;
-        filePath = `${downloadDir}/${fileName}`;
+  // Header
+  drawText("CATERING SERVICES", 50, y, 20, true, rgb(0.72, 0.2, 0.2));
+  addSpace(25);
+  drawText("QUOTATION", 50, y, 16, true);
+  addSpace(20);
+  page.drawLine({
+    start: { x: 50, y: y },
+    end: { x: width - 50, y: y },
+    thickness: 1.5,
+    color: rgb(0.72, 0.2, 0.2),
+  });
+  addSpace(20);
 
-        await RNFetchBlob.fs.writeFile(filePath, htmlContent, 'utf8');
+  // Client Info
+  drawText("CLIENT INFORMATION", 50, y, 13, true, rgb(0.72, 0.2, 0.2));
+  addSpace(18);
+  drawText(`Party Name: ${event.name}`, 60, y);
+  addSpace();
+  drawText(`Contact: ${event.contact_no}`, 60, y);
+  addSpace();
+  drawText(`Venue: ${event.venue}`, 60, y);
+  addSpace();
+  drawText(`Director Name: ${event.originalData?.director_name || "N/A"}`, 60, y);
+  addSpace(22);
 
-        RNFetchBlob.android.addCompleteDownload({
-          title: `Quotation - ${event.name}`,
-          description: 'Quotation HTML downloaded',
-          mime: 'text/html',
-          path: filePath,
-          showNotification: true,
+  // Event Details
+  drawText("EVENT DETAILS", 310, height - 155, 13, true, rgb(0.72, 0.2, 0.2));
+  drawText(`Guests: ${event.guest}`, 320, height - 175);
+  drawText(`Date: ${event.date}`, 320, height - 190);
+  drawText(`Time: ${event.time || "N/A"}`, 320, height - 205);
+  drawText(`Function Code: ${event.function_code}`, 320, height - 220);
+
+  // Table Header
+  y = height - 290;
+  drawText("SERVICES & ITEMS", 50, y, 13, true, rgb(0.72, 0.2, 0.2));
+  addSpace(20);
+
+  const drawTableHeader = () => {
+    const headerY = y;
+    page.drawRectangle({
+      x: 50,
+      y: headerY - 4,
+      width: width - 100,
+      height: 22,
+      color: rgb(0.94, 0.94, 0.94),
+    });
+    drawText("S.No", 55, headerY, 10, true);
+    drawText("Description", 90, headerY, 10, true);
+    drawText("Qty", 400, headerY, 10, true);
+    drawText("Rate", 450, headerY, 10, true);
+    drawText("Amount", 520, headerY, 10, true);
+    addSpace(26);
+  };
+  drawTableHeader();
+
+  const addSection = (items, title) => {
+    if (!items.length) return 0;
+    let sectionTotal = 0;
+
+    drawText(title.toUpperCase(), 50, y, 11, true, rgb(0.72, 0.2, 0.2));
+    addSpace(14);
+
+    items.forEach((item, index) => {
+      const amount = parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0);
+      sectionTotal += amount;
+
+      // Alternate background
+      if (index % 2 === 0) {
+        page.drawRectangle({
+          x: 50,
+          y: y - 3,
+          width: width - 100,
+          height: 16,
+          color: rgb(0.98, 0.98, 0.98),
         });
-      } else {
-        const documentDir = RNFetchBlob.fs.dirs.DocumentDir;
-        filePath = `${documentDir}/${fileName}`;
-        await RNFetchBlob.fs.writeFile(filePath, htmlContent, 'utf8');
       }
 
-      Toast.show({
-        type: 'success',
-        text1: 'Document Downloaded',
-        text2: 'Quotation saved successfully',
+      drawText(`${index + 1}`, 55, y, 9);
+      drawText(item.description || "N/A", 80, y, 9);
+      drawText(`${item.quantity || 0}`, 400, y, 9);
+      drawText(`Rs. ${parseFloat(item.unit_price || 0).toFixed(2)}`, 440, y, 9);
+      drawText(`Rs. ${amount.toFixed(2)}`, 520, y, 9);
+
+      page.drawLine({
+        start: { x: 50, y: y - 4 },
+        end: { x: width - 50, y: y - 4 },
+        thickness: 0.5,
+        color: rgb(0.85, 0.85, 0.85),
       });
 
-      Alert.alert(
-        'Download Complete',
-        'Quotation has been saved to your device. You can:\n\n• Open it in a browser\n• Print it as PDF\n• Share it from your file manager',
-        [{ text: 'OK' }],
-      );
-    } catch (error) {
-      console.error('Download error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Download Failed',
-        text2: 'Please try again',
-      });
-    }
+      addSpace(14);
+    });
+
+    // Subtotal line
+    drawText(`${title} Total:`, 400, y, 10, true);
+    drawText(`Rs. ${sectionTotal.toFixed(2)}`, 520, y, 10, true);
+    addSpace(20);
+    return sectionTotal;
   };
 
-  const handleShareOptions = event => {
-    Alert.alert(
-      'Quotation Options',
-      'Choose how you want to handle the quotation:',
-      [
-        {
-          text: '📥 Download to Device',
-          onPress: () => handleDownloadPDF(event),
-          style: 'default',
-        },
-        {
-          text: '📤 Share Directly',
-          onPress: () => handleDirectShare(event),
-          style: 'default',
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ],
-    );
+  addSection(food, "FOOD");
+  addSection(beverages, "BEVERAGES");
+  addSection(decoration, "DECORATION");
+  addSection(services, "SERVICES");
+
+  // Totals (no red border now)
+  addSpace(10);
+  page.drawLine({
+    start: { x: 50, y },
+    end: { x: width - 50, y },
+    thickness: 1,
+    color: rgb(0.72, 0.2, 0.2),
+  });
+  addSpace(20);
+
+  drawText("Total Amount:", 350, y, 11, true);
+  drawText(`Rs. ${totalAmount.toFixed(2)}`, 480, y, 11, true);
+  addSpace(16);
+  drawText("Advance Paid:", 350, y, 11, true);
+  drawText(`Rs. ${advanceAmount.toFixed(2)}`, 480, y, 11, true);
+  addSpace(16);
+  drawText("Balance Due:", 350, y, 11, true);
+  drawText(`Rs. ${balanceAmount.toFixed(2)}`, 480, y, 11, true);
+  addSpace(25);
+
+  // Amount in Words
+  const amountInWords = numberToWords(totalAmount);
+  drawText("Amount in Words:", 50, y, 10, true, rgb(0.72, 0.2, 0.2));
+  addSpace(12);
+  page.drawRectangle({
+    x: 50,
+    y: y - 5,
+    width: width - 100,
+    height: 25,
+    color: rgb(0.98, 0.98, 0.98),
+  });
+  drawText(amountInWords, 55, y + 2, 9);
+  addSpace(40);
+
+  // Signature
+  drawText("Authorized Signature", width - 180, y, 10, true);
+  page.drawLine({
+    start: { x: width - 180, y: y - 5 },
+    end: { x: width - 50, y: y - 5 },
+    thickness: 0.8,
+    color: rgb(0, 0, 0),
+  });
+  addSpace(30);
+
+  // Footer
+  page.drawLine({
+    start: { x: 50, y: 70 },
+    end: { x: width - 50, y: 70 },
+    thickness: 1,
+    color: rgb(0.85, 0.85, 0.85),
+  });
+  drawText("Thank you for your business!", 50, 55, 10, true, rgb(0.72, 0.2, 0.2));
+  drawText(`Prepared By: ${event.originalData?.salesman_name || "Sales Team"}`, 50, 40, 9);
+  drawText(`Date: ${new Date().toLocaleDateString()}`, width - 150, 40, 9);
+  drawText(
+    "CATERING SERVICES - Professional Event Management",
+    width / 2 - 140,
+    25,
+    8,
+    true,
+    rgb(0.5, 0.5, 0.5)
+  );
+
+  // Save file
+  const pdfBytes = await pdfDoc.save();
+  const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
+  const fileName = `Quotation_${event.name.replace(/\s+/g, "_")}_${event.function_code}.pdf`;
+  const path = `${RNFetchBlob.fs.dirs.CacheDir}/${fileName}`;
+  await RNFetchBlob.fs.writeFile(path, pdfBase64, "base64");
+
+  return path;
+};
+
+  // Add this helper function at the top level (outside generatePDFFile)
+  const numberToWords = num => {
+    if (num === 0) return 'Zero Rupees Only';
+
+    const ones = [
+      '',
+      'One',
+      'Two',
+      'Three',
+      'Four',
+      'Five',
+      'Six',
+      'Seven',
+      'Eight',
+      'Nine',
+    ];
+    const tens = [
+      '',
+      '',
+      'Twenty',
+      'Thirty',
+      'Forty',
+      'Fifty',
+      'Sixty',
+      'Seventy',
+      'Eighty',
+      'Ninety',
+    ];
+    const teens = [
+      'Ten',
+      'Eleven',
+      'Twelve',
+      'Thirteen',
+      'Fourteen',
+      'Fifteen',
+      'Sixteen',
+      'Seventeen',
+      'Eighteen',
+      'Nineteen',
+    ];
+
+    let words = '';
+
+    // Handle millions
+    if (num >= 1000000) {
+      const millions = Math.floor(num / 1000000);
+      words +=
+        numberToWords(millions).replace(' Rupees Only', '') + ' Million ';
+      num %= 1000000;
+    }
+
+    // Handle thousands
+    if (num >= 1000) {
+      const thousands = Math.floor(num / 1000);
+      if (thousands > 0) {
+        words +=
+          numberToWords(thousands).replace(' Rupees Only', '') + ' Thousand ';
+      }
+      num %= 1000;
+    }
+
+    // Handle hundreds
+    if (num >= 100) {
+      const hundreds = Math.floor(num / 100);
+      words += ones[hundreds] + ' Hundred ';
+      num %= 100;
+    }
+
+    // Handle tens and ones
+    if (num >= 20) {
+      words += tens[Math.floor(num / 10)] + ' ';
+      num %= 10;
+    } else if (num >= 10) {
+      words += teens[num - 10] + ' ';
+      num = 0;
+    }
+
+    if (num > 0) {
+      words += ones[num] + ' ';
+    }
+
+    return words.trim() + ' Rupees Only';
   };
 
   const handleEditEvent = async event => {
@@ -944,7 +1200,7 @@ const EventCalendarScreen = () => {
             <View style={styles.actionsContainer}>
               <TouchableOpacity
                 style={styles.actionButton}
-                onPress={() => handleShareOptions(item)}
+                onPress={() => handleDirectShare(item)}
               >
                 <Icon name="share-variant" size={18} color="#FFD700" />
               </TouchableOpacity>
