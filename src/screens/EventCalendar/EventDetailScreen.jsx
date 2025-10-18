@@ -9,20 +9,28 @@ import {
   StatusBar,
   Image,
   Alert,
-  ScrollView,
+  Linking,
 } from 'react-native';
+
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
 import AppHeader from '../../components/AppHeader';
 
 const EventDetailScreen = () => {
   const route = useRoute();
-  const navigation = useNavigation();
   const { event } = route.params || {};
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
+
+  const handleCall = number => {
+    if (!number) return;
+    const phoneNumber = `tel:${number}`;
+    Linking.openURL(phoneNumber).catch(err =>
+      console.error('Failed to open dialer:', err),
+    );
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -74,15 +82,15 @@ const EventDetailScreen = () => {
         backgroundColor="transparent"
         barStyle="light-content"
       />
-      
+
       <AppHeader title="Event Details" />
 
       <Animated.ScrollView
         style={[
           styles.scrollContent,
-          { 
-            opacity: fadeAnim, 
-            transform: [{ translateY: slideAnim }] 
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -97,8 +105,15 @@ const EventDetailScreen = () => {
             <Text style={styles.topName}>{event.name}</Text>
             <View style={styles.row}>
               <Icon name="phone" size={16} color="#FFD700" />
-              <Text style={styles.topInfo}>{event.contact_no}</Text>
+              <TouchableOpacity onPress={() => handleCall(event.contact_no)}>
+                <Text
+                  style={[styles.topInfo, { textDecorationLine: 'underline' }]}
+                >
+                  {event.contact_no}
+                </Text>
+              </TouchableOpacity>
             </View>
+
             <View style={styles.row}>
               <Icon name="map-marker" size={16} color="#FFD700" />
               <Text style={styles.topInfo} numberOfLines={2}>
@@ -125,7 +140,16 @@ const EventDetailScreen = () => {
               <Icon name="phone" size={16} color="#FFD700" />
               <Text style={styles.label}>Contact No</Text>
             </View>
-            <Text style={styles.value}>{event.contact_no}</Text>
+            <TouchableOpacity onPress={() => handleCall(event.contact_no)}>
+              <Text
+                style={[
+                  styles.value,
+                  { color: '#FFD700', textDecorationLine: 'underline' },
+                ]}
+              >
+                {event.contact_no}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.detailRow}>
@@ -173,7 +197,12 @@ const EventDetailScreen = () => {
               <Icon name="calculator" size={16} color="#FFD700" />
               <Text style={styles.label}>Remaining</Text>
             </View>
-            <Text style={[styles.value, { color: remaining > 0 ? '#FF6B6B' : '#4ECDC4' }]}>
+            <Text
+              style={[
+                styles.value,
+                { color: remaining > 0 ? '#FF6B6B' : '#4ECDC4' },
+              ]}
+            >
               Rs. {remaining.toLocaleString()}
             </Text>
           </View>
@@ -191,14 +220,11 @@ const EventDetailScreen = () => {
         <View style={styles.actionCard}>
           <Text style={styles.sectionTitle}>Actions</Text>
           <View style={styles.actionRow}>
-            <TouchableOpacity 
-              style={styles.confirmBtn} 
-              onPress={handleConfirm}
-            >
+            <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
               <Icon name="check-circle" size={20} color="#4A0000" />
               <Text style={styles.confirmText}>Confirm</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={styles.tentativeBtn}
               onPress={handleTentative}
@@ -217,10 +243,10 @@ export default EventDetailScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  center: { 
-    flex: 1, 
-    alignItems: 'center', 
-    justifyContent: 'center' 
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -238,27 +264,27 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 5,
   },
-  topAvatar: { 
-    width: 80, 
-    height: 80, 
-    borderRadius: 14 
+  topAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 14,
   },
-  topName: { 
-    color: '#fff', 
-    fontSize: 19, 
+  topName: {
+    color: '#fff',
+    fontSize: 19,
     fontWeight: '800',
-    marginBottom: 8 
+    marginBottom: 8,
   },
-  topInfo: { 
-    color: '#FFD700', 
-    fontSize: 14, 
+  topInfo: {
+    color: '#FFD700',
+    fontSize: 14,
     marginLeft: 8,
-    flex: 1 
+    flex: 1,
   },
-  row: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    marginBottom: 6 
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   detailCard: {
     backgroundColor: 'rgba(255,255,255,0.08)',
@@ -287,18 +313,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  label: { 
-    color: 'rgba(255,255,255,0.8)', 
-    fontSize: 14, 
+  label: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
     marginLeft: 8,
-    fontWeight: '600'
+    fontWeight: '600',
   },
-  value: { 
-    color: '#fff', 
-    fontSize: 14, 
+  value: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '700',
     textAlign: 'right',
-    flex: 1
+    flex: 1,
   },
   actionCard: {
     backgroundColor: 'rgba(255,255,255,0.08)',
@@ -320,11 +346,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
   },
-  confirmText: { 
-    color: '#4A0000', 
-    fontWeight: '700', 
+  confirmText: {
+    color: '#4A0000',
+    fontWeight: '700',
     fontSize: 15,
-    marginLeft: 8 
+    marginLeft: 8,
   },
   tentativeBtn: {
     flex: 1,
@@ -338,10 +364,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFD700',
   },
-  tentativeText: { 
-    color: '#FFD700', 
-    fontWeight: '700', 
+  tentativeText: {
+    color: '#FFD700',
+    fontWeight: '700',
     fontSize: 15,
-    marginLeft: 8 
+    marginLeft: 8,
   },
 });

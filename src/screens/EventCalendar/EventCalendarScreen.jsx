@@ -8,8 +8,6 @@ import {
   Animated,
   StatusBar,
   Image,
-  PermissionsAndroid,
-  Platform,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Calendar } from 'react-native-calendars';
@@ -21,376 +19,6 @@ import { encode as btoa } from 'base-64';
 import RNFetchBlob from 'react-native-blob-util';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import Share from 'react-native-share';
-
-// PDF Component for better reusability
-const PDFGenerator = {
-  generateHTML: (event, eventDetails) => {
-    const {
-      food = [],
-      beverages = [],
-      decoration = [],
-      services = [],
-    } = eventDetails;
-    const totalAmount = parseFloat(event.total || 0);
-    const advanceAmount = parseFloat(event.advance || 0);
-    const balanceAmount = totalAmount - advanceAmount;
-
-    const formatNumber = num => {
-      return new Intl.NumberFormat('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(num);
-    };
-
-    const numberToWords = num => {
-      if (num === 0) return 'Zero Rupees Only';
-      const ones = [
-        '',
-        'One',
-        'Two',
-        'Three',
-        'Four',
-        'Five',
-        'Six',
-        'Seven',
-        'Eight',
-        'Nine',
-      ];
-      const tens = [
-        '',
-        '',
-        'Twenty',
-        'Thirty',
-        'Forty',
-        'Fifty',
-        'Sixty',
-        'Seventy',
-        'Eighty',
-        'Ninety',
-      ];
-      const teens = [
-        'Ten',
-        'Eleven',
-        'Twelve',
-        'Thirteen',
-        'Fourteen',
-        'Fifteen',
-        'Sixteen',
-        'Seventeen',
-        'Eighteen',
-        'Nineteen',
-      ];
-
-      let words = '';
-
-      if (num >= 1000000) {
-        const millions = Math.floor(num / 1000000);
-        words +=
-          numberToWords(millions).replace(' Rupees Only', '') + ' Million ';
-        num %= 1000000;
-      }
-
-      if (num >= 1000) {
-        const thousands = Math.floor(num / 1000);
-        if (thousands > 0) {
-          words +=
-            numberToWords(thousands).replace(' Rupees Only', '') + ' Thousand ';
-        }
-        num %= 1000;
-      }
-
-      if (num >= 100) {
-        const hundreds = Math.floor(num / 100);
-        words += ones[hundreds] + ' Hundred ';
-        num %= 100;
-      }
-
-      if (num >= 20) {
-        words += tens[Math.floor(num / 10)] + ' ';
-        num %= 10;
-      } else if (num >= 10) {
-        words += teens[num - 10] + ' ';
-        num = 0;
-      }
-
-      if (num > 0) {
-        words += ones[num] + ' ';
-      }
-
-      return words.trim() + ' Rupees Only';
-    };
-
-    const renderTableSection = (items, title, startIndex = 0) => {
-      if (!items || items.length === 0) return '';
-
-      const rows = items
-        .map(
-          (item, index) => `
-        <tr>
-          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${
-            startIndex + index + 1
-          }</td>
-          <td style="padding: 8px; border: 1px solid #ddd;">${
-            item.description || 'N/A'
-          }</td>
-          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${
-            item.quantity || '0'
-          }</td>
-          <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Rs. ${formatNumber(
-            parseFloat(item.unit_price || 0),
-          )}</td>
-          <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Rs. ${formatNumber(
-            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0),
-          )}</td>
-        </tr>
-      `,
-        )
-        .join('');
-
-      const total = items.reduce(
-        (sum, item) =>
-          sum +
-          parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0),
-        0,
-      );
-
-      return `
-        <tr>
-          <td colspan="5" style="background-color: #B83232; color: white; font-weight: bold; padding: 10px; border: 1px solid #B83232; font-size: 12px;">${title.toUpperCase()}</td>
-        </tr>
-        ${rows}
-        <tr style="background-color: #f9f9f9;">
-          <td colspan="4" style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">${title} Total:</td>
-          <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Rs. ${formatNumber(
-            total,
-          )}</td>
-        </tr>
-      `;
-    };
-
-    let currentIndex = 0;
-    const foodSection = renderTableSection(food, 'FOOD', currentIndex);
-    currentIndex += food.length;
-    const beveragesSection = renderTableSection(
-      beverages,
-      'BEVERAGES',
-      currentIndex,
-    );
-    currentIndex += beverages.length;
-    const decorationSection = renderTableSection(
-      decoration,
-      'DECORATION',
-      currentIndex,
-    );
-    currentIndex += decoration.length;
-    const servicesSection = renderTableSection(
-      services,
-      'SERVICES',
-      currentIndex,
-    );
-
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Quotation - ${event.name}</title>
-        <style>
-          body { 
-            font-family: 'Arial', sans-serif; 
-            margin: 15px; 
-            padding: 0; 
-            color: #333;
-            line-height: 1.4;
-            font-size: 12px;
-          }
-          .header { 
-            text-align: center; 
-            border-bottom: 3px solid #B83232; 
-            padding-bottom: 12px;
-            margin-bottom: 15px;
-          }
-          .company-name { 
-            font-size: 22px; 
-            font-weight: bold; 
-            color: #B83232; 
-            margin-bottom: 4px;
-          }
-          .title { 
-            font-size: 18px; 
-            margin: 8px 0; 
-            font-weight: bold;
-          }
-          .content-wrapper {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-          }
-          .client-info { 
-            flex: 1;
-            margin-right: 12px;
-          }
-          .event-details {
-            flex: 1;
-            margin-left: 12px;
-          }
-          .section-title { 
-            font-weight: bold; 
-            margin-bottom: 6px;
-            color: #B83232;
-            font-size: 13px;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 3px;
-          }
-          .info-row { 
-            margin: 3px 0; 
-            font-size: 11px;
-          }
-          table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 10px 0;
-            font-size: 10px;
-            border: 1px solid #ddd;
-          }
-          th, td { 
-            border: 1px solid #ddd; 
-            padding: 6px; 
-            text-align: left;
-          }
-          th { 
-            background-color: #f2f2f2; 
-            font-weight: bold;
-            padding: 8px;
-          }
-          .grand-total-section { 
-            margin-top: 15px; 
-            text-align: right;
-            font-size: 13px;
-            border-top: 2px solid #B83232;
-            padding-top: 8px;
-          }
-          .total-row { 
-            margin: 5px 0; 
-          }
-          .amount-in-words {
-            margin-top: 10px;
-            padding: 8px;
-            background-color: #f9f9f9;
-            border: 1px solid #ddd;
-            font-style: italic;
-            font-size: 10px;
-          }
-          .footer {
-            margin-top: 25px;
-            text-align: center;
-            border-top: 1px solid #ddd;
-            padding-top: 10px;
-            font-size: 9px;
-            color: #666;
-          }
-          .director-info {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 10px;
-          }
-          .signature-area {
-            margin-top: 30px;
-            text-align: right;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="company-name">CATERING SERVICES</div>
-          <div class="title">QUOTATION</div>
-        </div>
-
-        <div class="content-wrapper">
-          <div class="client-info">
-            <div class="section-title">Client Information</div>
-            <div class="info-row"><strong>Party Name:</strong> ${
-              event.name
-            }</div>
-            <div class="info-row"><strong>Contact:</strong> ${
-              event.contact_no
-            }</div>
-            <div class="info-row"><strong>Venue:</strong> ${event.venue}</div>
-            <div class="info-row"><strong>Director Name:</strong> ${
-              event.originalData?.director_name || 'N/A'
-            }</div>
-          </div>
-          
-          <div class="event-details">
-            <div class="section-title">Event Details</div>
-            <div class="info-row"><strong>Guests:</strong> ${event.guest}</div>
-            <div class="info-row"><strong>Date:</strong> ${event.date}</div>
-            <div class="info-row"><strong>Time:</strong> ${
-              event.time || 'N/A'
-            }</div>
-            <div class="info-row"><strong>Function Code:</strong> ${
-              event.function_code
-            }</div>
-          </div>
-        </div>
-
-        <div class="section">
-          <div class="section-title">Services & Items</div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 8%; text-align: center;">S.No</th>
-                <th style="width: 52%">Description</th>
-                <th style="width: 10%; text-align: center;">Quantity</th>
-                <th style="width: 15%; text-align: right;">Rate</th>
-                <th style="width: 15%; text-align: right;">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${foodSection}
-              ${beveragesSection}
-              ${decorationSection}
-              ${servicesSection}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="grand-total-section">
-          <div class="total-row"><strong>Total Amount: Rs. ${formatNumber(
-            totalAmount,
-          )}</strong></div>
-          <div class="total-row"><strong>Advance Paid: Rs. ${formatNumber(
-            advanceAmount,
-          )}</strong></div>
-          <div class="total-row"><strong>Balance Due: Rs. ${formatNumber(
-            balanceAmount,
-          )}</strong></div>
-        </div>
-
-        <div class="amount-in-words">
-          <strong>Amount in Words:</strong> ${numberToWords(totalAmount)}
-        </div>
-
-        <div class="signature-area">
-          <div><strong>Authorized Signature</strong></div>
-          <div style="margin-top: 25px;">_________________________</div>
-        </div>
-
-        <div class="footer">
-          <p>Thank you for your business!</p>
-          <div class="director-info">
-            <div>Prepared By: ${
-              event.originalData?.salesman_name || 'Sales Team'
-            }</div>
-            <div>Date: ${new Date().toLocaleDateString()}</div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-  },
-};
 
 const EventCalendarScreen = () => {
   const navigation = useNavigation();
@@ -534,51 +162,6 @@ const EventCalendarScreen = () => {
     setMarkedDates(newMarked);
   }, [events, markedDates]);
 
-  const requestStoragePermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        if (Platform.Version >= 33) {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
-            {
-              title: 'Storage Permission Required',
-              message:
-                'This app needs access to your storage to save PDF files',
-              buttonPositive: 'OK',
-            },
-          );
-          return granted === PermissionsAndroid.RESULTS.GRANTED;
-        } else if (Platform.Version >= 29) {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-            {
-              title: 'Storage Permission Required',
-              message:
-                'This app needs access to your storage to save PDF files',
-              buttonPositive: 'OK',
-            },
-          );
-          return granted === PermissionsAndroid.RESULTS.GRANTED;
-        } else {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-            {
-              title: 'Storage Permission Required',
-              message:
-                'This app needs access to your storage to save PDF files',
-              buttonPositive: 'OK',
-            },
-          );
-          return granted === PermissionsAndroid.RESULTS.GRANTED;
-        }
-      } catch (err) {
-        console.warn('Permission error:', err);
-        return false;
-      }
-    }
-    return true;
-  };
-
   const fetchEventDetails = async orderNo => {
     try {
       const formData = new FormData();
@@ -610,119 +193,6 @@ const EventCalendarScreen = () => {
     }
   };
 
-  const generateHTMLContent = async (event, eventDetails) => {
-    try {
-      const htmlContent = PDFGenerator.generateHTML(event, eventDetails);
-      return htmlContent;
-    } catch (error) {
-      console.error('HTML generation error:', error);
-      throw error;
-    }
-  };
-  const generatePDFContent = async (event, eventDetails) => {
-    try {
-      const {
-        food = [],
-        beverages = [],
-        decoration = [],
-        services = [],
-      } = eventDetails;
-      const totalAmount = parseFloat(event.total || 0);
-      const advanceAmount = parseFloat(event.advance || 0);
-      const balanceAmount = totalAmount - advanceAmount;
-
-      // PDF content ko text format mein generate karenge
-      let pdfContent = `
-QUOTATION
-CATERING SERVICES
-
-Client Information:
-Party Name: ${event.name}
-Contact: ${event.contact_no}
-Venue: ${event.venue}
-Director Name: ${event.originalData?.director_name || 'N/A'}
-
-Event Details:
-Guests: ${event.guest}
-Date: ${event.date}
-Time: ${event.time || 'N/A'}
-Function Code: ${event.function_code}
-
-Services & Items:
-`;
-
-      // Food items
-      if (food.length > 0) {
-        pdfContent += '\nFOOD:\n';
-        food.forEach((item, index) => {
-          pdfContent += `${index + 1}. ${item.description || 'N/A'} | Qty: ${
-            item.quantity || '0'
-          } | Rate: Rs. ${parseFloat(item.unit_price || 0).toFixed(
-            2,
-          )} | Amount: Rs. ${(
-            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)
-          ).toFixed(2)}\n`;
-        });
-      }
-
-      // Beverages items
-      if (beverages.length > 0) {
-        pdfContent += '\nBEVERAGES:\n';
-        beverages.forEach((item, index) => {
-          pdfContent += `${index + 1}. ${item.description || 'N/A'} | Qty: ${
-            item.quantity || '0'
-          } | Rate: Rs. ${parseFloat(item.unit_price || 0).toFixed(
-            2,
-          )} | Amount: Rs. ${(
-            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)
-          ).toFixed(2)}\n`;
-        });
-      }
-
-      // Decoration items
-      if (decoration.length > 0) {
-        pdfContent += '\nDECORATION:\n';
-        decoration.forEach((item, index) => {
-          pdfContent += `${index + 1}. ${item.description || 'N/A'} | Qty: ${
-            item.quantity || '0'
-          } | Rate: Rs. ${parseFloat(item.unit_price || 0).toFixed(
-            2,
-          )} | Amount: Rs. ${(
-            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)
-          ).toFixed(2)}\n`;
-        });
-      }
-
-      // Services items
-      if (services.length > 0) {
-        pdfContent += '\nSERVICES:\n';
-        services.forEach((item, index) => {
-          pdfContent += `${index + 1}. ${item.description || 'N/A'} | Qty: ${
-            item.quantity || '0'
-          } | Rate: Rs. ${parseFloat(item.unit_price || 0).toFixed(
-            2,
-          )} | Amount: Rs. ${(
-            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)
-          ).toFixed(2)}\n`;
-        });
-      }
-
-      pdfContent += `
-\nTotal Amount: Rs. ${totalAmount.toFixed(2)}
-Advance Paid: Rs. ${advanceAmount.toFixed(2)}
-Balance Due: Rs. ${balanceAmount.toFixed(2)}
-
-Thank you for your business!
-Prepared By: ${event.originalData?.salesman_name || 'Sales Team'}
-Date: ${new Date().toLocaleDateString()}
-    `;
-
-      return pdfContent;
-    } catch (error) {
-      console.error('PDF content generation error:', error);
-      throw error;
-    }
-  };
   const handleDirectShare = async event => {
     try {
       Toast.show({
@@ -758,210 +228,259 @@ Date: ${new Date().toLocaleDateString()}
       });
     }
   };
-const generatePDFFile = async (event, eventDetails) => {
-  const { food = [], beverages = [], decoration = [], services = [] } = eventDetails;
+  const generatePDFFile = async (event, eventDetails) => {
+    const {
+      food = [],
+      beverages = [],
+      decoration = [],
+      services = [],
+    } = eventDetails;
 
-  const totalAmount = parseFloat(event.total || 0);
-  const advanceAmount = parseFloat(event.advance || 0);
-  const balanceAmount = totalAmount - advanceAmount;
+    const totalAmount = parseFloat(event.total || 0);
+    const advanceAmount = parseFloat(event.advance || 0);
+    const balanceAmount = totalAmount - advanceAmount;
 
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([595.28, 841.89]); // A4
-  const { width, height } = page.getSize();
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([595.28, 841.89]); // A4
+    const { width, height } = page.getSize();
 
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  let y = height - 50;
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    let y = height - 50;
 
-  const drawText = (text, x, y, size = 11, bold = false, color = rgb(0, 0, 0)) => {
-    page.drawText(String(text || ""), {
+    const drawText = (
+      text,
       x,
       y,
-      size,
-      font: bold ? fontBold : font,
-      color,
+      size = 11,
+      bold = false,
+      color = rgb(0, 0, 0),
+    ) => {
+      page.drawText(String(text || ''), {
+        x,
+        y,
+        size,
+        font: bold ? fontBold : font,
+        color,
+      });
+    };
+
+    const addSpace = (space = 14) => {
+      y -= space;
+    };
+
+    // Header
+    drawText('CATERING SERVICES', 50, y, 20, true, rgb(0.72, 0.2, 0.2));
+    addSpace(25);
+    drawText('QUOTATION', 50, y, 16, true);
+    addSpace(20);
+    page.drawLine({
+      start: { x: 50, y: y },
+      end: { x: width - 50, y: y },
+      thickness: 1.5,
+      color: rgb(0.72, 0.2, 0.2),
     });
-  };
+    addSpace(20);
 
-  const addSpace = (space = 14) => { y -= space; };
+    // Equal Height Alignment for Client Info + Event Details
+    const clientTopY = y;
 
-  // Header
-  drawText("CATERING SERVICES", 50, y, 20, true, rgb(0.72, 0.2, 0.2));
-  addSpace(25);
-  drawText("QUOTATION", 50, y, 16, true);
-  addSpace(20);
-  page.drawLine({
-    start: { x: 50, y: y },
-    end: { x: width - 50, y: y },
-    thickness: 1.5,
-    color: rgb(0.72, 0.2, 0.2),
-  });
-  addSpace(20);
+    // Left block - Client Info
+    drawText(
+      'CLIENT INFORMATION',
+      50,
+      clientTopY,
+      13,
+      true,
+      rgb(0.72, 0.2, 0.2),
+    );
+    addSpace(18);
+    drawText(`Party Name: ${event.name}`, 60, y);
+    addSpace();
+    drawText(`Contact: ${event.contact_no}`, 60, y);
+    addSpace();
+    drawText(`Venue: ${event.venue}`, 60, y);
+    addSpace();
+    drawText(
+      `Director Name: ${event.originalData?.director_name || 'N/A'}`,
+      60,
+      y,
+    );
 
-  // Client Info
-  drawText("CLIENT INFORMATION", 50, y, 13, true, rgb(0.72, 0.2, 0.2));
-  addSpace(18);
-  drawText(`Party Name: ${event.name}`, 60, y);
-  addSpace();
-  drawText(`Contact: ${event.contact_no}`, 60, y);
-  addSpace();
-  drawText(`Venue: ${event.venue}`, 60, y);
-  addSpace();
-  drawText(`Director Name: ${event.originalData?.director_name || "N/A"}`, 60, y);
-  addSpace(22);
+    // Right block - Event Details (aligned same height as client info)
+    const baseY = clientTopY - 18;
+    drawText('EVENT DETAILS', 320, baseY, 13, true, rgb(0.72, 0.2, 0.2));
+    drawText(`Guests: ${event.guest}`, 330, baseY - 18);
+    drawText(`Date: ${event.date}`, 330, baseY - 33);
+    drawText(`Time: ${event.time || 'N/A'}`, 330, baseY - 48);
+    drawText(`Function Code: ${event.function_code}`, 330, baseY - 63);
 
-  // Event Details
-  drawText("EVENT DETAILS", 310, height - 155, 13, true, rgb(0.72, 0.2, 0.2));
-  drawText(`Guests: ${event.guest}`, 320, height - 175);
-  drawText(`Date: ${event.date}`, 320, height - 190);
-  drawText(`Time: ${event.time || "N/A"}`, 320, height - 205);
-  drawText(`Function Code: ${event.function_code}`, 320, height - 220);
+    // Reset Y below both blocks
+    y = baseY - 90;
 
-  // Table Header
-  y = height - 290;
-  drawText("SERVICES & ITEMS", 50, y, 13, true, rgb(0.72, 0.2, 0.2));
-  addSpace(20);
+    // Table Header
+    drawText('SERVICES & ITEMS', 50, y, 13, true, rgb(0.72, 0.2, 0.2));
+    addSpace(20);
 
-  const drawTableHeader = () => {
-    const headerY = y;
-    page.drawRectangle({
-      x: 50,
-      y: headerY - 4,
-      width: width - 100,
-      height: 22,
-      color: rgb(0.94, 0.94, 0.94),
-    });
-    drawText("S.No", 55, headerY, 10, true);
-    drawText("Description", 90, headerY, 10, true);
-    drawText("Qty", 400, headerY, 10, true);
-    drawText("Rate", 450, headerY, 10, true);
-    drawText("Amount", 520, headerY, 10, true);
-    addSpace(26);
-  };
-  drawTableHeader();
+    const drawTableHeader = () => {
+      const headerY = y;
+      page.drawRectangle({
+        x: 50,
+        y: headerY - 4,
+        width: width - 100,
+        height: 24,
+        color: rgb(0.94, 0.94, 0.94),
+      });
+      drawText('S.No', 55, headerY, 10, true);
+      drawText('Description', 90, headerY, 10, true);
+      drawText('Qty', 400, headerY, 10, true);
+      drawText('Rate', 450, headerY, 10, true);
+      drawText('Amount', 520, headerY, 10, true);
+      addSpace(28);
+    };
+    drawTableHeader();
 
-  const addSection = (items, title) => {
-    if (!items.length) return 0;
-    let sectionTotal = 0;
+    const addSection = (items, title) => {
+      if (!items.length) return 0;
+      let sectionTotal = 0;
 
-    drawText(title.toUpperCase(), 50, y, 11, true, rgb(0.72, 0.2, 0.2));
-    addSpace(14);
+      drawText(title.toUpperCase(), 50, y, 11, true, rgb(0.72, 0.2, 0.2));
+      addSpace(16);
 
-    items.forEach((item, index) => {
-      const amount = parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0);
-      sectionTotal += amount;
+      items.forEach((item, index) => {
+        const amount =
+          parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0);
+        sectionTotal += amount;
 
-      // Alternate background
-      if (index % 2 === 0) {
-        page.drawRectangle({
-          x: 50,
-          y: y - 3,
-          width: width - 100,
-          height: 16,
-          color: rgb(0.98, 0.98, 0.98),
+        // Alternate background with better height & padding
+        if (index % 2 === 0) {
+          page.drawRectangle({
+            x: 50,
+            y: y - 4,
+            width: width - 100,
+            height: 18,
+            color: rgb(0.98, 0.98, 0.98),
+          });
+        }
+
+        drawText(`${index + 1}`, 55, y, 9);
+        drawText(item.description || 'N/A', 80, y, 9);
+        drawText(`${item.quantity || 0}`, 400, y, 9);
+        drawText(
+          `Rs. ${parseFloat(item.unit_price || 0).toFixed(2)}`,
+          440,
+          y,
+          9,
+        );
+        drawText(`Rs. ${amount.toFixed(2)}`, 515, y, 9); // shifted left a bit
+
+        page.drawLine({
+          start: { x: 50, y: y - 4 },
+          end: { x: width - 50, y: y - 4 },
+          thickness: 0.5,
+          color: rgb(0.85, 0.85, 0.85),
         });
-      }
 
-      drawText(`${index + 1}`, 55, y, 9);
-      drawText(item.description || "N/A", 80, y, 9);
-      drawText(`${item.quantity || 0}`, 400, y, 9);
-      drawText(`Rs. ${parseFloat(item.unit_price || 0).toFixed(2)}`, 440, y, 9);
-      drawText(`Rs. ${amount.toFixed(2)}`, 520, y, 9);
-
-      page.drawLine({
-        start: { x: 50, y: y - 4 },
-        end: { x: width - 50, y: y - 4 },
-        thickness: 0.5,
-        color: rgb(0.85, 0.85, 0.85),
+        addSpace(18); // increased row height
       });
 
-      addSpace(14);
+      drawText(`${title} Total:`, 400, y, 10, true);
+      drawText(`Rs. ${sectionTotal.toFixed(2)}`, 515, y, 10, true);
+      addSpace(22);
+      return sectionTotal;
+    };
+
+    addSection(food, 'FOOD');
+    addSection(beverages, 'BEVERAGES');
+    addSection(decoration, 'DECORATION');
+    addSection(services, 'SERVICES');
+
+    // Totals section
+    addSpace(12);
+    page.drawLine({
+      start: { x: 50, y },
+      end: { x: width - 50, y },
+      thickness: 1,
+      color: rgb(0.72, 0.2, 0.2),
     });
+    addSpace(22);
 
-    // Subtotal line
-    drawText(`${title} Total:`, 400, y, 10, true);
-    drawText(`Rs. ${sectionTotal.toFixed(2)}`, 520, y, 10, true);
-    addSpace(20);
-    return sectionTotal;
+    drawText('Total Amount:', 350, y, 11, true);
+    drawText(`Rs. ${totalAmount.toFixed(2)}`, 465, y, 11, true);
+    addSpace(18);
+    drawText('Advance Paid:', 350, y, 11, true);
+    drawText(`Rs. ${advanceAmount.toFixed(2)}`, 465, y, 11, true);
+    addSpace(18);
+    drawText('Balance Due:', 350, y, 11, true);
+    drawText(`Rs. ${balanceAmount.toFixed(2)}`, 465, y, 11, true);
+    addSpace(28);
+
+    // Amount in Words
+    const amountInWords = numberToWords(totalAmount);
+    drawText('Amount in Words:', 50, y, 10, true, rgb(0.72, 0.2, 0.2));
+    addSpace(12);
+    page.drawRectangle({
+      x: 50,
+      y: y - 5,
+      width: width - 100,
+      height: 26,
+      color: rgb(0.98, 0.98, 0.98),
+    });
+    drawText(amountInWords, 55, y + 2, 9);
+    addSpace(40);
+
+    // Signature
+    drawText('Authorized Signature', width - 180, y, 10, true);
+    page.drawLine({
+      start: { x: width - 180, y: y - 5 },
+      end: { x: width - 50, y: y - 5 },
+      thickness: 0.8,
+      color: rgb(0, 0, 0),
+    });
+    addSpace(30);
+
+    // Footer
+    page.drawLine({
+      start: { x: 50, y: 70 },
+      end: { x: width - 50, y: 70 },
+      thickness: 1,
+      color: rgb(0.85, 0.85, 0.85),
+    });
+    drawText(
+      'Thank you for your business!',
+      50,
+      55,
+      10,
+      true,
+      rgb(0.72, 0.2, 0.2),
+    );
+    drawText(
+      `Prepared By: ${event.originalData?.salesman_name || 'Sales Team'}`,
+      50,
+      40,
+      9,
+    );
+    drawText(`Date: ${new Date().toLocaleDateString()}`, width - 150, 40, 9);
+    drawText(
+      'CATERING SERVICES - Professional Event Management',
+      width / 2 - 140,
+      25,
+      8,
+      true,
+      rgb(0.5, 0.5, 0.5),
+    );
+
+    // Save file
+    const pdfBytes = await pdfDoc.save();
+    const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
+    const fileName = `Quotation_${event.name.replace(/\s+/g, '_')}_${
+      event.function_code
+    }.pdf`;
+    const path = `${RNFetchBlob.fs.dirs.CacheDir}/${fileName}`;
+    await RNFetchBlob.fs.writeFile(path, pdfBase64, 'base64');
+
+    return path;
   };
-
-  addSection(food, "FOOD");
-  addSection(beverages, "BEVERAGES");
-  addSection(decoration, "DECORATION");
-  addSection(services, "SERVICES");
-
-  // Totals (no red border now)
-  addSpace(10);
-  page.drawLine({
-    start: { x: 50, y },
-    end: { x: width - 50, y },
-    thickness: 1,
-    color: rgb(0.72, 0.2, 0.2),
-  });
-  addSpace(20);
-
-  drawText("Total Amount:", 350, y, 11, true);
-  drawText(`Rs. ${totalAmount.toFixed(2)}`, 480, y, 11, true);
-  addSpace(16);
-  drawText("Advance Paid:", 350, y, 11, true);
-  drawText(`Rs. ${advanceAmount.toFixed(2)}`, 480, y, 11, true);
-  addSpace(16);
-  drawText("Balance Due:", 350, y, 11, true);
-  drawText(`Rs. ${balanceAmount.toFixed(2)}`, 480, y, 11, true);
-  addSpace(25);
-
-  // Amount in Words
-  const amountInWords = numberToWords(totalAmount);
-  drawText("Amount in Words:", 50, y, 10, true, rgb(0.72, 0.2, 0.2));
-  addSpace(12);
-  page.drawRectangle({
-    x: 50,
-    y: y - 5,
-    width: width - 100,
-    height: 25,
-    color: rgb(0.98, 0.98, 0.98),
-  });
-  drawText(amountInWords, 55, y + 2, 9);
-  addSpace(40);
-
-  // Signature
-  drawText("Authorized Signature", width - 180, y, 10, true);
-  page.drawLine({
-    start: { x: width - 180, y: y - 5 },
-    end: { x: width - 50, y: y - 5 },
-    thickness: 0.8,
-    color: rgb(0, 0, 0),
-  });
-  addSpace(30);
-
-  // Footer
-  page.drawLine({
-    start: { x: 50, y: 70 },
-    end: { x: width - 50, y: 70 },
-    thickness: 1,
-    color: rgb(0.85, 0.85, 0.85),
-  });
-  drawText("Thank you for your business!", 50, 55, 10, true, rgb(0.72, 0.2, 0.2));
-  drawText(`Prepared By: ${event.originalData?.salesman_name || "Sales Team"}`, 50, 40, 9);
-  drawText(`Date: ${new Date().toLocaleDateString()}`, width - 150, 40, 9);
-  drawText(
-    "CATERING SERVICES - Professional Event Management",
-    width / 2 - 140,
-    25,
-    8,
-    true,
-    rgb(0.5, 0.5, 0.5)
-  );
-
-  // Save file
-  const pdfBytes = await pdfDoc.save();
-  const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
-  const fileName = `Quotation_${event.name.replace(/\s+/g, "_")}_${event.function_code}.pdf`;
-  const path = `${RNFetchBlob.fs.dirs.CacheDir}/${fileName}`;
-  await RNFetchBlob.fs.writeFile(path, pdfBase64, "base64");
-
-  return path;
-};
 
   // Add this helper function at the top level (outside generatePDFFile)
   const numberToWords = num => {
@@ -1210,9 +729,6 @@ const generatePDFFile = async (event, eventDetails) => {
               >
                 <Icon name="pencil" size={18} color="#FFD700" />
               </TouchableOpacity>
-              <View style={styles.chevWrap}>
-                <Icon name="chevron-right" size={18} color="#FFD700" />
-              </View>
             </View>
           </View>
         </LinearGradient>
@@ -1320,9 +836,7 @@ const generatePDFFile = async (event, eventDetails) => {
           <View style={styles.eventsContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
-                {selectedDate
-                  ? `Events for ${formatDate(selectedDate)}`
-                  : 'All Events'}
+                {selectedDate ? `${formatDate(selectedDate)}` : 'All Events'}
               </Text>
               {selectedDate && (
                 <TouchableOpacity
@@ -1458,7 +972,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     color: '#FFD700',
-    fontSize: 10,
+    fontSize: 12,
     marginLeft: 4,
     flex: 1,
   },
