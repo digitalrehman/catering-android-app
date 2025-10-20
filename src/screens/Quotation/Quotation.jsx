@@ -1,4 +1,3 @@
-// QuotationScreen.jsx
 import React, {
   useMemo,
   useState,
@@ -13,10 +12,12 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
   Platform,
+  ActivityIndicator,
   FlatList,
+  ToastAndroid,
   Keyboard,
+  Modal,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import COLORS from '../../utils/colors';
@@ -40,16 +41,14 @@ const makeDefaultRows = (startId = 1) =>
   }));
 
 /* -------------------------
-   Lightweight ExcelCell
-   - opens keyboard when tapped (via onFocus)
-   - minimal re-renders (memo)
+   Lightweight ExcelCell - FIXED
    ------------------------- */
 const ExcelCell = memo(
   ({
     value,
     onChange,
     keyboardType = 'default',
-    onRequestEdit, // called when user taps cell
+    onRequestEdit,
     isEditing,
     highlight,
     flex,
@@ -59,7 +58,6 @@ const ExcelCell = memo(
 
     useEffect(() => {
       if (isEditing && textInputRef.current) {
-        // small timeout to ensure stable focus (avoids focus-loop)
         const t = setTimeout(() => {
           textInputRef.current?.focus();
         }, 50);
@@ -76,7 +74,6 @@ const ExcelCell = memo(
           { flex },
         ]}
         onPress={() => {
-          // request editing; parent will set editingCell id
           onRequestEdit && onRequestEdit();
         }}
       >
@@ -88,11 +85,19 @@ const ExcelCell = memo(
             onChangeText={onChange}
             keyboardType={keyboardType}
             onBlur={() => {
-              // dismiss keyboard and let parent clear editing
               Keyboard.dismiss();
             }}
             returnKeyType="done"
             placeholder={placeholder}
+            // ✅ IMPORTANT: Yeh lines add karein
+            onFocus={e => {
+              // Prevent bubbling up
+              e.stopPropagation();
+            }}
+            onTouchStart={e => {
+              // Prevent touch event from bubbling to parent
+              e.stopPropagation();
+            }}
           />
         ) : (
           <Text style={styles.cellText}>{value}</Text>
@@ -104,11 +109,47 @@ const ExcelCell = memo(
 
 /* -------------------------
    Row component (memo)
-   Receives item and callbacks; avoids re-rendering whole list.
    ------------------------- */
 const TableRow = memo(
   ({ item, index, onUpdateCell, editingCell, setEditingCell, tableName }) => {
-    const cellKey = key => `${tableName}-${item.id}-${key}`;
+    const cellKey = useCallback(
+      key => `${tableName}-${item.id}-${key}`,
+      [tableName, item.id],
+    );
+
+    const handleUpdateMenu = useCallback(
+      t => onUpdateCell(item.id, 'menu', t),
+      [onUpdateCell, item.id],
+    );
+    const handleUpdateQty = useCallback(
+      t => onUpdateCell(item.id, 'qty', t),
+      [onUpdateCell, item.id],
+    );
+    const handleUpdateRate = useCallback(
+      t => onUpdateCell(item.id, 'rate', t),
+      [onUpdateCell, item.id],
+    );
+    const handleUpdateTotal = useCallback(
+      t => onUpdateCell(item.id, 'total', t, true),
+      [onUpdateCell, item.id],
+    );
+
+    const handleEditMenu = useCallback(
+      () => setEditingCell(cellKey('menu')),
+      [cellKey, setEditingCell],
+    );
+    const handleEditQty = useCallback(
+      () => setEditingCell(cellKey('qty')),
+      [cellKey, setEditingCell],
+    );
+    const handleEditRate = useCallback(
+      () => setEditingCell(cellKey('rate')),
+      [cellKey, setEditingCell],
+    );
+    const handleEditTotal = useCallback(
+      () => setEditingCell(cellKey('total')),
+      [cellKey, setEditingCell],
+    );
 
     return (
       <View style={styles.row} key={item.id}>
@@ -119,8 +160,8 @@ const TableRow = memo(
         <ExcelCell
           value={item.menu}
           flex={0.45}
-          onChange={t => onUpdateCell(item.id, 'menu', t)}
-          onRequestEdit={() => setEditingCell(cellKey('menu'))}
+          onChange={handleUpdateMenu}
+          onRequestEdit={handleEditMenu}
           isEditing={editingCell === cellKey('menu')}
           highlight={editingCell === cellKey('menu')}
           placeholder="Detail"
@@ -130,8 +171,8 @@ const TableRow = memo(
           value={String(item.qty)}
           flex={0.1}
           keyboardType="numeric"
-          onChange={t => onUpdateCell(item.id, 'qty', t)}
-          onRequestEdit={() => setEditingCell(cellKey('qty'))}
+          onChange={handleUpdateQty}
+          onRequestEdit={handleEditQty}
           isEditing={editingCell === cellKey('qty')}
           highlight={editingCell === cellKey('qty')}
           placeholder="0"
@@ -141,8 +182,8 @@ const TableRow = memo(
           value={String(item.rate)}
           flex={0.15}
           keyboardType="numeric"
-          onChange={t => onUpdateCell(item.id, 'rate', t)}
-          onRequestEdit={() => setEditingCell(cellKey('rate'))}
+          onChange={handleUpdateRate}
+          onRequestEdit={handleEditRate}
           isEditing={editingCell === cellKey('rate')}
           highlight={editingCell === cellKey('rate')}
           placeholder="0"
@@ -152,13 +193,24 @@ const TableRow = memo(
           value={item.total ? String(Math.round(parseFloat(item.total))) : ''}
           flex={0.2}
           keyboardType="numeric"
-          onChange={t => onUpdateCell(item.id, 'total', t, true)}
-          onRequestEdit={() => setEditingCell(cellKey('total'))}
+          onChange={handleUpdateTotal}
+          onRequestEdit={handleEditTotal}
           isEditing={editingCell === cellKey('total')}
           highlight={editingCell === cellKey('total')}
           placeholder="0"
         />
       </View>
+    );
+  },
+  (prevProps, nextProps) => {
+    return (
+      prevProps.item.id === nextProps.item.id &&
+      prevProps.item.menu === nextProps.item.menu &&
+      prevProps.item.qty === nextProps.item.qty &&
+      prevProps.item.rate === nextProps.item.rate &&
+      prevProps.item.total === nextProps.item.total &&
+      prevProps.editingCell === nextProps.editingCell &&
+      prevProps.index === nextProps.index
     );
   },
 );
@@ -197,6 +249,7 @@ const Quotation = ({ navigation }) => {
   const user = useSelector(state => state.Data.currentData);
   const route = useRoute();
   const { eventData } = route.params || {};
+  console.log('🚀 Quotation for eventData:', eventData);
 
   const [clientInfo, setClientInfo] = useState({
     contactNo: '',
@@ -214,10 +267,8 @@ const Quotation = ({ navigation }) => {
   const [rateMode, setRateMode] = useState('perhead');
 
   const [directors, setDirectors] = useState([]);
-
-  // Date picker inline control (no modals)
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [datePickerMode, setDatePickerMode] = useState('date'); // 'date' or 'time'
+  const [datePickerMode, setDatePickerMode] = useState('date');
   const [tempDate, setTempDate] = useState(new Date());
 
   const [perHeadInfo, setPerHeadInfo] = useState('');
@@ -225,10 +276,8 @@ const Quotation = ({ navigation }) => {
 
   const [foodRows, setFoodRows] = useState(makeDefaultRows(1));
   const [decRows, setDecRows] = useState(makeDefaultRows(6));
-
   const [editingCell, setEditingCell] = useState(null);
 
-  // New states:
   const [foodOwnerAmount, setFoodOwnerAmount] = useState('');
   const [decOwnerAmount, setDecOwnerAmount] = useState('');
   const [beverageType, setBeverageType] = useState('none');
@@ -238,8 +287,19 @@ const Quotation = ({ navigation }) => {
   const [bankSelected, setBankSelected] = useState('');
   const [bankAmount, setBankAmount] = useState('');
 
+  const [initialAdvance, setInitialAdvance] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const showToast = msg => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(msg, ToastAndroid.SHORT);
+    } else {
+      console.log('Toast:', msg);
+    }
+  };
+
   /* -------------------------
-     fetch directors & banks (clean)
+     fetch directors & banks
      ------------------------- */
   useEffect(() => {
     let mounted = true;
@@ -277,10 +337,9 @@ const Quotation = ({ navigation }) => {
 
   const fetchEventDetails = async () => {
     try {
-      console.log('Editing event:', eventData);
-
+      if (!eventData?.id) return;
       const formData = new FormData();
-      formData.append('order_no', eventData.id); // 👈 eventData.id = order_no
+      formData.append('order_no', eventData.id || '');
 
       const res = await fetch(
         'https://cat.de2solutions.com/mobile_dash/get_event_food_decor_detail.php',
@@ -290,46 +349,120 @@ const Quotation = ({ navigation }) => {
         },
       );
 
-      const text = await res.text();
-      console.log('Raw response:', text);
-
-      const data = JSON.parse(text);
-      console.log('Parsed event food/decor details:', data);
-
-      // ✅ Food rows
-      if (data.status_food === 'true' && Array.isArray(data.data_food)) {
-        const foodItems = data.data_food.map((item, idx) => ({
-          id: String(idx + 1),
-          menu: item.description || '',
-          qty: String(item.quantity || ''),
-          rate: String(item.unit_price || ''),
-          total: (
-            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)
-          ).toFixed(2),
-          manualTotal: false,
-        }));
-        setFoodRows(foodItems.length ? foodItems : makeDefaultRows(1));
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
       }
 
-      // ✅ Decor rows
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.log('JSON Parse Error:', parseError);
+        return;
+      }
+
+      let foodPerHeadValue = '';
+      let decPerHeadValue = '';
+
+      // Food rows
+      if (data.status_food === 'true' && Array.isArray(data.data_food)) {
+        const foodItems = data.data_food
+          .filter(item => item && item.description)
+          .map((item, idx) => {
+            const quantity = parseFloat(item.quantity || 0);
+            const unitPrice = parseFloat(item.unit_price || 0);
+
+            // FIX: Per head amount detect karna
+            if (item.description?.toLowerCase().includes('per head')) {
+              foodPerHeadValue = String(unitPrice || '');
+            }
+
+            return {
+              id: String(idx + 1),
+              menu: item.description?.trim() || '',
+              qty: quantity > 0 ? String(quantity) : '',
+              rate: unitPrice > 0 ? String(unitPrice) : '',
+              total:
+                quantity > 0 && unitPrice > 0
+                  ? (quantity * unitPrice).toFixed(2)
+                  : '',
+              manualTotal: false,
+            };
+          });
+
+        console.log('🍕 Processed food items:', foodItems);
+        setFoodRows(foodItems.length > 0 ? foodItems : makeDefaultRows(1));
+      } else {
+        setFoodRows(makeDefaultRows(1));
+      }
+
+      if (data.data_food && Array.isArray(data.data_food)) {
+        data.data_food.forEach(item => {
+          if (item.description?.toLowerCase().includes('food per head')) {
+            foodPerHeadValue = String(item.unit_price || '');
+          }
+          if (
+            item.description?.toLowerCase().includes('decoration per head') ||
+            item.description?.toLowerCase().includes('services per head')
+          ) {
+            decPerHeadValue = String(item.unit_price || '');
+          }
+        });
+      }
+
+      // Beverages data
+      if (
+        data.status_beverages === 'true' &&
+        Array.isArray(data.data_beverages)
+      ) {
+        const beverageItem = data.data_beverages[0];
+        if (beverageItem) {
+          const beverageDesc = beverageItem.description?.toLowerCase() || '';
+          if (beverageDesc.includes('can')) {
+            setBeverageType('can');
+          } else if (beverageDesc.includes('regular')) {
+            setBeverageType('regular');
+          }
+        }
+      }
+
+      // Decor rows
       if (
         data.status_decoration === 'true' &&
         Array.isArray(data.data_decoration)
       ) {
-        const decItems = data.data_decoration.map((item, idx) => ({
-          id: String(idx + 1),
-          menu: item.description || '',
-          qty: String(item.quantity || ''),
-          rate: String(item.unit_price || ''),
-          total: (
-            parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)
-          ).toFixed(2),
-          manualTotal: false,
-        }));
-        setDecRows(decItems.length ? decItems : makeDefaultRows(6));
+        const decItems = data.data_decoration
+          .filter(item => item && item.description)
+          .map((item, idx) => {
+            const quantity = parseFloat(item.quantity || 0);
+            const unitPrice = parseFloat(item.unit_price || 0);
+
+            // FIX: Per head amount detect karna
+            if (item.description?.toLowerCase().includes('per head')) {
+              decPerHeadValue = String(unitPrice || '');
+            }
+
+            return {
+              id: String(idx + 6 + idx),
+              menu: item.description?.trim() || '',
+              qty: quantity > 0 ? String(quantity) : '',
+              rate: unitPrice > 0 ? String(unitPrice) : '',
+              total:
+                quantity > 0 && unitPrice > 0
+                  ? (quantity * unitPrice).toFixed(2)
+                  : '',
+              manualTotal: false,
+            };
+          });
+
+        console.log('🎨 Processed decor items:', decItems);
+        setDecRows(decItems.length > 0 ? decItems : makeDefaultRows(6));
+      } else {
+        setDecRows(makeDefaultRows(6));
       }
 
-      // ✅ Prefill basic info from eventData
+      // Prefill basic info
       setClientInfo({
         contactNo: eventData.contact_no || '',
         name: eventData.name || '',
@@ -339,14 +472,26 @@ const Quotation = ({ navigation }) => {
         noOfGuest: eventData.guest || '',
       });
 
+      // FIX: Set per head amounts
+      setFoodOwnerAmount(foodPerHeadValue);
+      setDecOwnerAmount(decPerHeadValue);
+
       setManualFoodTotal(eventData.total || '');
-      setCashReceived(eventData.advance || '');
-      setServiceType('F'); // default
-      setRateMode('perhead'); // default
+
+      // FIX: Initial advance amount set karna for proper remaining balance calculation
+      const advanceAmount = eventData.advance || '0';
+      setCashReceived(advanceAmount);
+      setInitialAdvance(parseFloat(advanceAmount) || 0);
+
+      // FIX: Advance mode automatically set karna if advance hai
+      if (advanceAmount && parseFloat(advanceAmount) > 0) {
+        setAdvanceMode('cash');
+      }
     } catch (err) {
       console.log('Error fetching event details:', err);
     }
   };
+
   useEffect(() => {
     if (!eventData?.id) return;
     fetchEventDetails();
@@ -357,20 +502,22 @@ const Quotation = ({ navigation }) => {
   }, []);
 
   /* -------------------------
-     update single row more efficiently
+     update single row
      ------------------------- */
   const updateRow = useCallback(
     (rowsSetter, id, key, value, markManual = false) => {
       rowsSetter(prev => {
         const idx = prev.findIndex(r => r.id === id);
         if (idx === -1) return prev;
+
+        const currentItem = prev[idx];
+        if (currentItem[key] === value) return prev;
+
         const next = [...prev];
         const item = { ...next[idx] };
-        // avoid updating if same value
-        if (item[key] === value) return prev;
         item[key] = value;
         if (markManual) item.manualTotal = true;
-        // recalc total when qty/rate and not manual
+
         if (!item.manualTotal && (key === 'qty' || key === 'rate')) {
           const q = parseFloat(item.qty || 0);
           const rt = parseFloat(item.rate || 0);
@@ -424,13 +571,14 @@ const Quotation = ({ navigation }) => {
     : decAutoTotal + decOwnerTotal;
   const grandTotal = finalFoodTotal + finalDecTotal + beverageTotal;
 
-  // Advance / balance
+  // FIX: Remaining balance calculation - initial advance ko consider karna
   const advancePaid =
     advanceMode === 'cash'
       ? parseFloat(cashReceived || 0) || 0
       : advanceMode === 'bank'
       ? parseFloat(bankAmount || 0) || 0
-      : 0;
+      : initialAdvance; // FIX: Initial advance use karo
+
   const remainingBalance = Math.max(0, grandTotal - advancePaid);
 
   // Reset form function
@@ -459,11 +607,13 @@ const Quotation = ({ navigation }) => {
     setCashReceived('');
     setBankSelected('');
     setBankAmount('');
+    setInitialAdvance(0);
   };
 
   /* -------------------------
-     Save handler (keeps sales_order_details with text1)
+     Save handler
      ------------------------- */
+
   const handleSave = async () => {
     if (
       !clientInfo.contactNo ||
@@ -472,14 +622,12 @@ const Quotation = ({ navigation }) => {
       !rateMode ||
       !serviceType
     ) {
-      Alert.alert(
-        'Missing Information',
-        'Please fill all client details before saving.',
-      );
+      showToast('Please fill all client details before saving.');
       return;
     }
 
     try {
+      setLoading(true);
       const formData = new FormData();
       formData.append('party_name', clientInfo.name);
 
@@ -493,23 +641,30 @@ const Quotation = ({ navigation }) => {
 
       formData.append('contact_no', clientInfo.contactNo);
       formData.append('venue', clientInfo.venue);
-      formData.append('guest', clientInfo.noOfGuest || '0');
+      formData.append('guest', clientInfo.noOfGuest || 0);
       formData.append('director_id', Number(clientInfo.director) || 0);
-      formData.append('total', String(Math.round(grandTotal)));
-      formData.append('so_advance', String(Math.round(advancePaid)));
+      formData.append('total', Math.round(grandTotal));
+      formData.append('so_advance', Math.round(advancePaid));
       formData.append('user_id', Number(user?.id) || 12);
 
+      // eventType
       const eventTypeMap = { D: '1', F: '2', 'F+D': '3', 'F+S': '4' };
       formData.append('event_type', eventTypeMap[serviceType] || '2');
 
+      // salesType
       const salesTypeMap = { perkg: '1', perhead: '4' };
       formData.append('sales_type', salesTypeMap[rateMode] || '4');
 
       formData.append('bank_id', Number(bankSelected) || 0);
 
+      // ✅ NEW LOGIC: add update_id
+      const updateId = eventData?.id ? Number(eventData.id) : 0;
+      formData.append('update_id', updateId);
+
+      // prepare order details
       const salesOrderDetails = [];
 
-      // Food rows (text1: 'F')
+      // Food rows
       foodRows
         .filter(r => r.menu)
         .forEach(r => {
@@ -521,12 +676,10 @@ const Quotation = ({ navigation }) => {
           });
         });
 
-      // Decoration / Services rows (text1: 'D' or 'S' depending on serviceType usage)
+      // Decor/service rows
       decRows
         .filter(r => r.menu)
         .forEach(r => {
-          // If screen is F+S we store decRows as services (text1 S),
-          // otherwise as decoration (text1 D)
           const text1 = serviceType === 'F+S' ? 'S' : 'D';
           salesOrderDetails.push({
             description: r.menu,
@@ -541,7 +694,7 @@ const Quotation = ({ navigation }) => {
         if (foodOwnerAmount && parseFloat(foodOwnerAmount) > 0) {
           salesOrderDetails.push({
             description: 'Food Per Head',
-            quantity: clientInfo.noOfGuest || '0',
+            quantity: clientInfo.noOfGuest || 0,
             unit_price: foodOwnerAmount,
             text1: 'F',
           });
@@ -553,7 +706,7 @@ const Quotation = ({ navigation }) => {
               serviceType === 'F+S'
                 ? 'Services Per Head'
                 : 'Decoration Per Head',
-            quantity: clientInfo.noOfGuest || '0',
+            quantity: clientInfo.noOfGuest || 0,
             unit_price: decOwnerAmount,
             text1: serviceType === 'F+S' ? 'S' : 'D',
           });
@@ -566,7 +719,7 @@ const Quotation = ({ navigation }) => {
               : 'Beverages Per Head Can';
           salesOrderDetails.push({
             description: beverageDesc,
-            quantity: clientInfo.noOfGuest || '0',
+            quantity: clientInfo.noOfGuest || 0,
             unit_price: beverageType === 'regular' ? '250' : '300',
             text1: 'B',
           });
@@ -589,33 +742,30 @@ const Quotation = ({ navigation }) => {
         },
       );
 
-      const responseText = await response.text();
-      let responseData = null;
+      const text = await response.text();
+      let responseData;
       try {
-        responseData = JSON.parse(responseText);
-      } catch (e) {
-        responseData = { message: responseText, status: 'parse_error' };
+        responseData = JSON.parse(text);
+      } catch {
+        responseData = { message: text };
       }
 
       if (response.ok) {
-        Alert.alert('Success', 'Quotation has been successfully saved.', [
-          {
-            text: 'OK',
-            onPress: () => {
-              resetForm();
-              navigation.navigate('EventCalendar');
-            },
-          },
-        ]);
-      } else {
-        Alert.alert(
-          'Error',
-          responseData?.message || 'Failed to save. Please try again.',
+        showToast(
+          updateId === 0
+            ? 'Quotation successfully added.'
+            : 'Quotation successfully updated.',
         );
+        resetForm();
+        navigation.navigate('EventCalendar');
+      } else {
+        showToast(responseData?.message || 'Failed to save quotation.');
       }
     } catch (error) {
-      console.error('Save error details:', error);
-      Alert.alert('Error', `Failed to save: ${error.message || error}`);
+      console.error('Save error:', error);
+      showToast(`Save failed: ${error.message || error}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -627,149 +777,163 @@ const Quotation = ({ navigation }) => {
     total: 0.2,
   };
 
-  // Render table using FlatList for virtualization
-  const renderTable = (rows, setRows, title, autoTotal, tableName) => {
-    const onUpdateCell = (id, key, value, markManual = false) => {
-      updateRow(setRows, id, key, value, markManual);
-    };
-
-    // small height so FlatList virtualizes
-    return (
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>
-            {title} {rateMode === 'perhead' ? '(Per Head)' : '(Per KG)'}
-          </Text>
-        </View>
-
-        <View style={styles.headerRow}>
-          <Text style={[styles.headerCell, { flex: COL_FLEX.s_no }]}>S#</Text>
-          <Text style={[styles.headerCell, { flex: COL_FLEX.menu }]}>
-            Detail
-          </Text>
-          <Text style={[styles.headerCell, { flex: COL_FLEX.qty }]}>Qty</Text>
-          <Text style={[styles.headerCell, { flex: COL_FLEX.rate }]}>Rate</Text>
-          <Text style={[styles.headerCell, { flex: COL_FLEX.total }]}>
-            Total
-          </Text>
-        </View>
-
-        <FlatList
-          data={rows}
-          keyExtractor={item => item.id}
-          renderItem={({ item, index }) => (
-            <TableRow
-              item={item}
-              index={index}
-              onUpdateCell={(id, key, value, markManual) =>
-                onUpdateCell(id, key, value, markManual)
-              }
-              editingCell={editingCell}
-              setEditingCell={setEditingCell}
-              tableName={tableName}
-            />
-          )}
-          nestedScrollEnabled
-          style={{ maxHeight: 260 }} // allows virtualization; adjust if you want taller
-          initialNumToRender={6}
-          windowSize={8}
-          removeClippedSubviews
+  /* -------------------------
+     Table Component
+     ------------------------- */
+  const TableComponent = memo(
+    ({ rows, setRows, title, autoTotal, tableName }) => {
+      const renderRow = ({ item, index }) => (
+        <TableRow
+          item={item}
+          index={index}
+          onUpdateCell={(id, key, value, markManual) =>
+            updateRow(setRows, id, key, value, markManual)
+          }
+          editingCell={editingCell}
+          setEditingCell={setEditingCell}
+          tableName={tableName}
         />
+      );
 
-        <View style={styles.addAndTotalsRow}>
-          <TouchableOpacity
-            style={styles.smallAddLeft}
-            onPress={() => addRow(rows, setRows)}
-          >
-            <Ionicons name="add" size={18} color={COLORS.WHITE} />
-          </TouchableOpacity>
-
-          <View style={styles.ownerAmountWrap}>
-            <TextInput
-              value={tableName === 'food' ? foodOwnerAmount : decOwnerAmount}
-              onChangeText={t =>
-                tableName === 'food'
-                  ? setFoodOwnerAmount(t)
-                  : setDecOwnerAmount(t)
-              }
-              placeholder="0"
-              keyboardType="numeric"
-              placeholderTextColor="#666"
-              style={styles.ownerInput}
-            />
+      return (
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>
+              {title} {rateMode === 'perhead' ? '(Per Head)' : '(Per KG)'}
+            </Text>
           </View>
 
-          {tableName === 'food' ? (
-            <View style={styles.totalInlineRow}>
-              <Text style={styles.totalLabelSmall}>Food Total:</Text>
-              <TouchableOpacity
-                activeOpacity={1}
-                style={[
-                  styles.totalCellSmall,
-                  editingCell === 'food-table-total' && {
-                    borderColor: COLORS.ACCENT,
-                    borderWidth: 2,
-                  },
-                ]}
-                onPress={() => setEditingCell('food-table-total')}
-              >
-                {editingCell === 'food-table-total' ? (
-                  <TextInput
-                    autoFocus
-                    value={manualFoodTotal}
-                    onChangeText={setManualFoodTotal}
-                    keyboardType="numeric"
-                    onBlur={() => setEditingCell(null)}
-                    style={styles.totalInputSmall}
-                  />
-                ) : (
-                  <Text style={styles.totalValueSmall}>
-                    {manualFoodTotal ||
-                      String(
-                        Math.round(autoTotal + Math.round(foodOwnerTotal)),
-                      )}
-                  </Text>
-                )}
-              </TouchableOpacity>
+          <View style={styles.headerRow}>
+            <Text style={[styles.headerCell, { flex: COL_FLEX.s_no }]}>S#</Text>
+            <Text style={[styles.headerCell, { flex: COL_FLEX.menu }]}>
+              Detail
+            </Text>
+            <Text style={[styles.headerCell, { flex: COL_FLEX.qty }]}>Qty</Text>
+            <Text style={[styles.headerCell, { flex: COL_FLEX.rate }]}>
+              Rate
+            </Text>
+            <Text style={[styles.headerCell, { flex: COL_FLEX.total }]}>
+              Total
+            </Text>
+          </View>
+
+          <FlatList
+            data={rows}
+            keyExtractor={item => `${tableName}-${item.id}`}
+            renderItem={renderRow}
+            scrollEnabled={false}
+            nestedScrollEnabled={true}
+            style={{ maxHeight: 260 }}
+            initialNumToRender={4}
+            windowSize={4}
+            maxToRenderPerBatch={3}
+            updateCellsBatchingPeriod={100}
+            removeClippedSubviews={Platform.OS === 'android'}
+          />
+
+          <View style={styles.addAndTotalsRow}>
+            <TouchableOpacity
+              style={styles.smallAddLeft}
+              onPress={() => addRow(rows, setRows)}
+            >
+              <Ionicons name="add" size={18} color={COLORS.WHITE} />
+            </TouchableOpacity>
+
+            <View style={styles.ownerAmountWrap}>
+              <TextInput
+                value={tableName === 'food' ? foodOwnerAmount : decOwnerAmount}
+                onChangeText={t =>
+                  tableName === 'food'
+                    ? setFoodOwnerAmount(t)
+                    : setDecOwnerAmount(t)
+                }
+                placeholder="0"
+                keyboardType="numeric"
+                placeholderTextColor="#666"
+                style={styles.ownerInput}
+                onTouchStart={e => e.stopPropagation()}
+                onFocus={e => e.stopPropagation()}
+              />
             </View>
-          ) : (
-            <View style={styles.totalInlineRow}>
-              <Text style={styles.totalLabelSmall}>
-                {serviceType === 'F+S' ? 'Services Total' : 'Decor Total'}:
-              </Text>
-              <TouchableOpacity
-                activeOpacity={1}
-                style={[
-                  styles.totalCellSmall,
-                  editingCell === 'dec-table-total' && {
-                    borderColor: COLORS.ACCENT,
-                    borderWidth: 2,
-                  },
-                ]}
-                onPress={() => setEditingCell('dec-table-total')}
-              >
-                {editingCell === 'dec-table-total' ? (
-                  <TextInput
-                    autoFocus
-                    value={manualDecTotal}
-                    onChangeText={setManualDecTotal}
-                    keyboardType="numeric"
-                    onBlur={() => setEditingCell(null)}
-                    style={styles.totalInputSmall}
-                  />
-                ) : (
-                  <Text style={styles.totalValueSmall}>
-                    {manualDecTotal ||
-                      String(Math.round(autoTotal + Math.round(decOwnerTotal)))}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
+
+            {tableName === 'food' ? (
+              <View style={styles.totalInlineRow}>
+                <Text style={styles.totalLabelSmall}>Food Total:</Text>
+                <TouchableOpacity
+                  activeOpacity={1}
+                  style={[
+                    styles.totalCellSmall,
+                    editingCell === 'food-table-total' && {
+                      borderColor: COLORS.ACCENT,
+                      borderWidth: 2,
+                    },
+                  ]}
+                  onPress={() => setEditingCell('food-table-total')}
+                >
+                  {editingCell === 'food-table-total' ? (
+                    <TextInput
+                      autoFocus
+                      value={manualFoodTotal}
+                      onChangeText={setManualFoodTotal}
+                      keyboardType="numeric"
+                      onBlur={() => setEditingCell(null)}
+                      style={styles.totalInputSmall}
+                      onTouchStart={e => e.stopPropagation()}
+                      onFocus={e => e.stopPropagation()}
+                    />
+                  ) : (
+                    <Text style={styles.totalValueSmall}>
+                      {manualFoodTotal ||
+                        String(
+                          Math.round(autoTotal + Math.round(foodOwnerTotal)),
+                        )}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.totalInlineRow}>
+                <Text style={styles.totalLabelSmall}>
+                  {serviceType === 'F+S' ? 'Services Total' : 'Decor Total'}:
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={1}
+                  style={[
+                    styles.totalCellSmall,
+                    editingCell === 'dec-table-total' && {
+                      borderColor: COLORS.ACCENT,
+                      borderWidth: 2,
+                    },
+                  ]}
+                  onPress={() => setEditingCell('dec-table-total')}
+                >
+                  {editingCell === 'dec-table-total' ? (
+                    <TextInput
+                      autoFocus
+                      value={manualDecTotal}
+                      onChangeText={setManualDecTotal}
+                      keyboardType="numeric"
+                      onBlur={() => setEditingCell(null)}
+                      style={styles.totalInputSmall}
+                      onTouchStart={e => e.stopPropagation()}
+                      onFocus={e => e.stopPropagation()}
+                    />
+                  ) : (
+                    <Text style={styles.totalValueSmall}>
+                      {manualDecTotal ||
+                        String(
+                          Math.round(autoTotal + Math.round(decOwnerTotal)),
+                        )}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
-    );
-  };
+      );
+    },
+  );
 
   const formatDisplayDate = isoString => {
     if (!isoString) return '';
@@ -787,7 +951,7 @@ const Quotation = ({ navigation }) => {
     }
   };
 
-  // Date/time picker handlers (inline)
+  // Date/time picker handlers
   const openDatePicker = mode => {
     setDatePickerMode(mode);
     setTempDate(
@@ -798,7 +962,6 @@ const Quotation = ({ navigation }) => {
 
   const onDateChange = (event, selected) => {
     if (Platform.OS === 'android') {
-      // Android returns event when cancelled
       if (!selected) {
         setShowDatePicker(false);
         return;
@@ -808,7 +971,6 @@ const Quotation = ({ navigation }) => {
     setTempDate(value);
 
     if (datePickerMode === 'date') {
-      // open time next on Android; for iOS user can pick both
       if (Platform.OS === 'android') {
         setShowDatePicker(false);
         setTimeout(() => {
@@ -816,11 +978,8 @@ const Quotation = ({ navigation }) => {
           setShowDatePicker(true);
         }, 250);
         return;
-      } else {
-        // ios: keep date picker shown (or you can close)
       }
     } else if (datePickerMode === 'time') {
-      // merge and set clientInfo.dateTime
       const merged = new Date(
         tempDate.getFullYear(),
         tempDate.getMonth(),
@@ -838,7 +997,9 @@ const Quotation = ({ navigation }) => {
       <AppHeader title="Quotation" />
       <ScrollView
         contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="never"
+        nestedScrollEnabled={true}
+        showsVerticalScrollIndicator={true}
       >
         {/* Client Information Section */}
         <View style={styles.section}>
@@ -853,6 +1014,8 @@ const Quotation = ({ navigation }) => {
                 value={clientInfo.contactNo}
                 keyboardType="phone-pad"
                 onChangeText={t => updateClientInfo('contactNo', t)}
+                onTouchStart={e => e.stopPropagation()}
+                onFocus={e => e.stopPropagation()}
               />
               <TextInput
                 style={styles.input}
@@ -860,6 +1023,8 @@ const Quotation = ({ navigation }) => {
                 placeholderTextColor="#b0b0b0"
                 value={clientInfo.name}
                 onChangeText={t => updateClientInfo('name', t)}
+                onTouchStart={e => e.stopPropagation()}
+                onFocus={e => e.stopPropagation()}
               />
             </View>
 
@@ -886,6 +1051,8 @@ const Quotation = ({ navigation }) => {
                 value={clientInfo.noOfGuest}
                 keyboardType="numeric"
                 onChangeText={t => updateClientInfo('noOfGuest', t)}
+                onTouchStart={e => e.stopPropagation()}
+                onFocus={e => e.stopPropagation()}
               />
             </View>
 
@@ -923,11 +1090,13 @@ const Quotation = ({ navigation }) => {
                 placeholderTextColor="#b0b0b0"
                 value={clientInfo.venue}
                 onChangeText={t => updateClientInfo('venue', t)}
+                onTouchStart={e => e.stopPropagation()}
+                onFocus={e => e.stopPropagation()}
               />
             </View>
           </View>
 
-          {/* Inline DateTimePicker (no modal) */}
+          {/* Inline DateTimePicker */}
           {showDatePicker && (
             <DateTimePicker
               value={tempDate}
@@ -970,13 +1139,13 @@ const Quotation = ({ navigation }) => {
           <>
             {serviceType === 'F' && (
               <>
-                {renderTable(
-                  foodRows,
-                  setFoodRows,
-                  'Food Details',
-                  foodAutoTotal,
-                  'food',
-                )}
+                <TableComponent
+                  rows={foodRows}
+                  setRows={setFoodRows}
+                  title="Food Details"
+                  autoTotal={foodAutoTotal}
+                  tableName="food"
+                />
 
                 <View style={styles.section}>
                   <View style={styles.sectionHeaderRow}>
@@ -1045,24 +1214,25 @@ const Quotation = ({ navigation }) => {
               </>
             )}
 
-            {serviceType === 'D' &&
-              renderTable(
-                decRows,
-                setDecRows,
-                'Decoration Details',
-                decAutoTotal,
-                'dec',
-              )}
+            {serviceType === 'D' && (
+              <TableComponent
+                rows={decRows}
+                setRows={setDecRows}
+                title="Decoration Details"
+                autoTotal={decAutoTotal}
+                tableName="dec"
+              />
+            )}
 
             {serviceType === 'F+D' && (
               <>
-                {renderTable(
-                  foodRows,
-                  setFoodRows,
-                  'Food Details',
-                  foodAutoTotal,
-                  'food',
-                )}
+                <TableComponent
+                  rows={foodRows}
+                  setRows={setFoodRows}
+                  title="Food Details"
+                  autoTotal={foodAutoTotal}
+                  tableName="food"
+                />
 
                 <View style={styles.section}>
                   <View style={styles.sectionHeaderRow}>
@@ -1129,25 +1299,25 @@ const Quotation = ({ navigation }) => {
                   </View>
                 </View>
 
-                {renderTable(
-                  decRows,
-                  setDecRows,
-                  'Decoration Details',
-                  decAutoTotal,
-                  'dec',
-                )}
+                <TableComponent
+                  rows={decRows}
+                  setRows={setDecRows}
+                  title="Decoration Details"
+                  autoTotal={decAutoTotal}
+                  tableName="dec"
+                />
               </>
             )}
 
             {serviceType === 'F+S' && (
               <>
-                {renderTable(
-                  foodRows,
-                  setFoodRows,
-                  'Food Details',
-                  foodAutoTotal,
-                  'food',
-                )}
+                <TableComponent
+                  rows={foodRows}
+                  setRows={setFoodRows}
+                  title="Food Details"
+                  autoTotal={foodAutoTotal}
+                  tableName="food"
+                />
 
                 <View style={styles.section}>
                   <View style={styles.sectionHeaderRow}>
@@ -1214,13 +1384,13 @@ const Quotation = ({ navigation }) => {
                   </View>
                 </View>
 
-                {renderTable(
-                  decRows,
-                  setDecRows,
-                  'Services Details',
-                  decAutoTotal,
-                  'dec',
-                )}
+                <TableComponent
+                  rows={decRows}
+                  setRows={setDecRows}
+                  title="Services Details"
+                  autoTotal={decAutoTotal}
+                  tableName="dec"
+                />
               </>
             )}
 
@@ -1244,6 +1414,7 @@ const Quotation = ({ navigation }) => {
                     onChangeText={setPerHeadInfo}
                     onFocus={() => setPerHeadExpanded(true)}
                     onBlur={() => setPerHeadExpanded(false)}
+                    onTouchStart={e => e.stopPropagation()}
                   />
                 </TouchableOpacity>
               </View>
@@ -1307,6 +1478,8 @@ const Quotation = ({ navigation }) => {
                     placeholder="0"
                     placeholderTextColor="#666"
                     style={styles.advanceInput}
+                    onTouchStart={e => e.stopPropagation()}
+                    onFocus={e => e.stopPropagation()}
                   />
                 </View>
               )}
@@ -1358,6 +1531,8 @@ const Quotation = ({ navigation }) => {
                       placeholder="0"
                       placeholderTextColor="#666"
                       style={styles.advanceInput}
+                      onTouchStart={e => e.stopPropagation()}
+                      onFocus={e => e.stopPropagation()}
                     />
                   </View>
                 </>
@@ -1386,6 +1561,30 @@ const Quotation = ({ navigation }) => {
 
         <View style={{ height: 50 }} />
       </ScrollView>
+      <Modal transparent visible={loading} animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: 'white',
+              padding: 25,
+              borderRadius: 10,
+              alignItems: 'center',
+            }}
+          >
+            <ActivityIndicator size="large" color={COLORS.ACCENT} />
+            <Text style={{ marginTop: 10, color: COLORS.PRIMARY_DARK }}>
+              Saving quotation...
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };

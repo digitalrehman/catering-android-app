@@ -230,14 +230,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 12,
     marginBottom: 12,
-    backgroundColor: '#fff', // keep white card style
+    backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#eee',
   },
   grandLabel: { color: COLORS.PRIMARY_DARK, fontSize: 18, fontWeight: '700' },
   grandValue: { color: COLORS.PRIMARY_DARK, fontSize: 18, fontWeight: '700' },
 
-  // Advance Payment styles
   advanceRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
   advanceOption: {
     paddingHorizontal: 12,
@@ -284,14 +283,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     padding: 8,
-    backgroundColor: '#f0f8ff',
+    backgroundColor: COLORS.PRIMARY,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#d1ecff',
+    borderColor: COLORS.PRIMARY_DARK,
   },
   bankNameText: {
     fontWeight: '700',
-    color: COLORS.PRIMARY_DARK,
+    color: COLORS.WHITE,
     fontSize: 14,
   },
 
@@ -304,12 +303,12 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     width: '100%',
-    backgroundColor: COLORS.ACCENT,
+    backgroundColor: COLORS.PRIMARY_DARK,
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
   },
-  saveBtnText: { color: COLORS.PRIMARY_DARK, fontWeight: '800', fontSize: 16 },
+  saveBtnText: { color: COLORS.ACCENT, fontWeight: '800', fontSize: 16 },
   downloadBtn: {
     flex: 1,
     backgroundColor: COLORS.PRIMARY,
