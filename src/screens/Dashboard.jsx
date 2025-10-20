@@ -46,7 +46,11 @@ const Dashboard = ({ navigation }) => {
 
   return (
     <LinearGradient colors={['#B83232', '#4A0000']} style={styles.container}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="light-content"
+      />
       <Animated.View
         style={{
           flex: 1,
@@ -66,7 +70,10 @@ const Dashboard = ({ navigation }) => {
                 <Icon name="bell-outline" size={22} color="#FFD700" />
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.iconCircle, { backgroundColor: 'rgba(255,215,0,0.1)' }]}
+                style={[
+                  styles.iconCircle,
+                  { backgroundColor: 'rgba(255,215,0,0.1)' },
+                ]}
                 onPress={() => dispatch(setLogout())}
               >
                 <Icon2 name="logout" size={22} color="#FFD700" />
@@ -85,6 +92,7 @@ const Dashboard = ({ navigation }) => {
 
             <View style={styles.buttonRow}>
               <TouchableOpacity
+                onPress={() => navigation.navigate('ConfirmEventScreen')}
                 style={[styles.actionBtn, { backgroundColor: '#FFD700' }]}
               >
                 <Icon name="check-circle" size={20} color="#990303" />
@@ -93,6 +101,7 @@ const Dashboard = ({ navigation }) => {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
+                onPress={() => navigation.navigate('TentativeScreen')}
                 style={[
                   styles.actionBtn,
                   { backgroundColor: 'rgba(255,255,255,0.1)' },

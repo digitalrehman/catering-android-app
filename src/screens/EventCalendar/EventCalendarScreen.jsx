@@ -7,18 +7,14 @@ import {
   TouchableOpacity,
   Animated,
   StatusBar,
-  Image,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Calendar } from 'react-native-calendars';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import AppHeader from '../../components/AppHeader';
-import Toast from 'react-native-toast-message';
-import { encode as btoa } from 'base-64';
-import RNFetchBlob from 'react-native-blob-util';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import Share from 'react-native-share';
+import EventCard from '../../components/EventCard';
+import { handleDirectShare } from '../../utils/pdfShare';
 
 const EventCalendarScreen = () => {
   const navigation = useNavigation();
@@ -193,246 +189,6 @@ const EventCalendarScreen = () => {
     }
   };
 
-  const handleDirectShare = async event => {
-    try {
-      Toast.show({
-        type: 'info',
-        text1: 'Preparing PDF',
-        text2: 'Please wait...',
-      });
-
-      const eventDetails = await fetchEventDetails(event.id);
-      const pdfPath = await generatePDFFile(event, eventDetails);
-
-      const exists = await RNFetchBlob.fs.exists(pdfPath);
-      if (!exists) throw new Error('PDF file not found');
-
-      let fileUrl = `file://${pdfPath.replace('file://', '')}`;
-
-      const shareOptions = {
-        title: `Quotation for ${event.name}`,
-        url: fileUrl,
-        type: 'application/pdf',
-        message: `Quotation for ${event.name}`,
-        failOnCancel: false,
-      };
-
-      await Share.open(shareOptions);
-      Toast.show({ type: 'success', text1: 'Quotation shared successfully!' });
-    } catch (error) {
-      console.error('Share error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Failed to share PDF',
-        text2: error.message || 'Please try again',
-      });
-    }
-  };
-  const generatePDFFile = async (event, eventDetails) => {
-  const {
-    food = [],
-    beverages = [],
-    decoration = [],
-    services = [],
-  } = eventDetails;
-
-  const totalAmount = parseFloat(event.total || 0);
-  const advanceAmount = parseFloat(event.advance || 0);
-  const balanceAmount = totalAmount - advanceAmount;
-
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([595.28, 841.89]); // A4
-  const { width, height } = page.getSize();
-
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  let y = height - 50;
-
-  const drawText = (text, x, y, size = 11, bold = false, color = rgb(0, 0, 0)) => {
-    page.drawText(String(text || ''), {
-      x,
-      y,
-      size,
-      font: bold ? fontBold : font,
-      color,
-    });
-  };
-
-  const addSpace = (space = 14) => {
-    y -= space;
-  };
-
-  // Header
-  drawText('CATERING SERVICES', 50, y, 20, true, rgb(0.72, 0.2, 0.2));
-  addSpace(25);
-  drawText('QUOTATION', 50, y, 16, true);
-  addSpace(20);
-  page.drawLine({
-    start: { x: 50, y: y },
-    end: { x: width - 50, y: y },
-    thickness: 1.5,
-    color: rgb(0.72, 0.2, 0.2),
-  });
-  addSpace(25);
-
-  // Client Info + Event Details
-  const clientTopY = y;
-  drawText('CLIENT INFORMATION', 50, clientTopY, 13, true, rgb(0.72, 0.2, 0.2));
-  addSpace(18);
-  drawText(`Party Name: ${event.name}`, 60, y);
-  addSpace();
-  drawText(`Contact: ${event.contact_no}`, 60, y);
-  addSpace();
-  drawText(`Venue: ${event.venue}`, 60, y);
-  addSpace();
-  drawText(`Director Name: ${event.originalData?.director_name || 'N/A'}`, 60, y);
-
-  // Event Details (shifted slightly up)
-  const baseY = clientTopY - 2;
-  drawText('EVENT DETAILS', 320, baseY, 13, true, rgb(0.72, 0.2, 0.2));
-  drawText(`Guests: ${event.guest}`, 330, baseY - 18);
-  drawText(`Date: ${event.date}`, 330, baseY - 33);
-  drawText(`Time: ${event.time || 'N/A'}`, 330, baseY - 48);
-  drawText(`Function Code: ${event.function_code}`, 330, baseY - 63);
-
-  // Reset Y below both blocks
-  y = baseY - 90;
-
-  // Table Header
-  drawText('SERVICES & ITEMS', 50, y, 13, true, rgb(0.72, 0.2, 0.2));
-  addSpace(20);
-
-  const drawTableHeader = () => {
-    const headerY = y;
-    page.drawRectangle({
-      x: 50,
-      y: headerY - 4,
-      width: width - 100,
-      height: 24,
-      color: rgb(0.94, 0.94, 0.94),
-    });
-    drawText('S.No', 55, headerY, 10, true);
-    drawText('Description', 90, headerY, 10, true);
-    drawText('Qty', 400, headerY, 10, true);
-    drawText('Rate', 450, headerY, 10, true);
-    drawText('Amount', 520, headerY, 10, true);
-    addSpace(28);
-  };
-  drawTableHeader();
-
-  const formatNum = n => {
-    const num = parseFloat(n || 0);
-    if (num === 0 || isNaN(num)) return '';
-    return num % 1 === 0 ? String(num) : num.toFixed(2).replace(/\.00$/, '');
-  };
-
-  const capitalize = str =>
-    str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-
-  const addSection = (items, title) => {
-    if (!items.length) return 0;
-    let sectionTotal = 0;
-
-    drawText(capitalize(title), 50, y, 11, true, rgb(0.72, 0.2, 0.2));
-    addSpace(16);
-
-    items.forEach((item, index) => {
-      const qty = formatNum(item.quantity);
-      const rate = formatNum(item.unit_price);
-      const amount = (parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)) || 0;
-      sectionTotal += amount;
-
-      if (index % 2 === 0) {
-        page.drawRectangle({
-          x: 50,
-          y: y - 5,
-          width: width - 100,
-          height: 22,
-          color: rgb(0.98, 0.98, 0.98),
-        });
-      }
-
-      drawText(`${index + 1}`, 55, y, 9);
-      drawText(item.description || 'N/A', 80, y, 9);
-      drawText(qty, 400, y, 9);
-      drawText(rate ? `Rs. ${rate}` : '', 440, y, 9);
-      drawText(amount ? `Rs. ${formatNum(amount)}` : '', 515, y, 9);
-
-      addSpace(20);
-    });
-
-    drawText(`${capitalize(title)} Total:`, 400, y, 10, true);
-    drawText(`Rs. ${formatNum(sectionTotal)}`, 515, y, 10, true);
-    addSpace(22);
-    return sectionTotal;
-  };
-
-  addSection(food, 'food');
-  addSection(beverages, 'beverages');
-  addSection(decoration, 'decoration');
-  addSection(services, 'services');
-
-  addSpace(12);
-  page.drawLine({
-    start: { x: 50, y },
-    end: { x: width - 50, y },
-    thickness: 1,
-    color: rgb(0.72, 0.2, 0.2),
-  });
-  addSpace(22);
-
-  drawText('Grand Total:', 350, y, 11, true);
-  drawText(`Rs. ${formatNum(totalAmount)}`, 465, y, 11, true);
-  addSpace(18);
-  drawText('Received Payment:', 350, y, 11, true);
-  drawText(`Rs. ${formatNum(advanceAmount)}`, 465, y, 11, true);
-  addSpace(18);
-  drawText('Balance:', 350, y, 11, true);
-  drawText(`Rs. ${formatNum(balanceAmount)}`, 465, y, 11, true);
-  addSpace(28);
-
-  const amountInWords = numberToWords(totalAmount);
-  drawText('Amount in Words:', 50, y, 10, true, rgb(0.72, 0.2, 0.2));
-  addSpace(12);
-  page.drawRectangle({
-    x: 50,
-    y: y - 5,
-    width: width - 100,
-    height: 26,
-    color: rgb(0.98, 0.98, 0.98),
-  });
-  drawText(amountInWords, 55, y + 2, 9);
-  addSpace(40);
-
-  drawText('Authorized Signature', width - 180, y, 10, true);
-  page.drawLine({
-    start: { x: width - 180, y: y - 5 },
-    end: { x: width - 50, y: y - 5 },
-    thickness: 0.8,
-    color: rgb(0, 0, 0),
-  });
-  addSpace(30);
-
-  page.drawLine({
-    start: { x: 50, y: 70 },
-    end: { x: width - 50, y: 70 },
-    thickness: 1,
-    color: rgb(0.85, 0.85, 0.85),
-  });
-  drawText('Thank you for your business!', 50, 55, 10, true, rgb(0.72, 0.2, 0.2));
-  drawText(`Prepared By: ${event.originalData?.salesman_name || 'Sales Team'}`, 50, 40, 9);
-  drawText(`Date: ${new Date().toLocaleDateString()}`, width - 150, 40, 9);
-  drawText('CATERING SERVICES - Professional Event Management', width / 2 - 140, 25, 8, true, rgb(0.5, 0.5, 0.5));
-
-  const pdfBytes = await pdfDoc.save();
-  const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
-  const fileName = `Quotation_${event.name.replace(/\s+/g, '_')}_${event.function_code}.pdf`;
-  const path = `${RNFetchBlob.fs.dirs.CacheDir}/${fileName}`;
-  await RNFetchBlob.fs.writeFile(path, pdfBase64, 'base64');
-
-  return path;
-};
-
   const numberToWords = num => {
     if (num === 0) return 'Zero Rupees Only';
 
@@ -516,57 +272,13 @@ const EventCalendarScreen = () => {
     return words.trim() + ' Rupees Only';
   };
 
-  const renderEventCard = ({ item }) => {
-    return (
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.85}
-        onPress={() => navigation.navigate('EventDetail', { event: item })}
-      >
-        <LinearGradient
-          colors={['#B83232', '#990303']}
-          style={styles.cardInner}
-        >
-          <View style={styles.cardRow}>
-            <Image source={item.image} style={styles.avatar} />
-            <View style={styles.cardContent}>
-              <Text style={styles.name}>{item.name}</Text>
-              <View style={styles.row}>
-                <Icon name="phone" size={12} color="#FFD700" />
-                <Text style={styles.infoText}>{item.contact_no}</Text>
-              </View>
-              <View style={styles.row}>
-                <Icon name="account-group" size={12} color="#FFD700" />
-                <Text style={styles.infoText}>{item.guest} Guests</Text>
-              </View>
-              <View style={styles.row}>
-                <Icon name="map-marker" size={12} color="#FFD700" />
-                <Text style={styles.infoText} numberOfLines={1}>
-                  {item.venue}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.actionsContainer}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => handleDirectShare(item)}
-              >
-                <Icon name="share-variant" size={18} color="#FFD700" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() =>
-                  navigation.navigate('Quotation', { eventData: item })
-                }
-              >
-                <Icon name="pencil" size={18} color="#FFD700" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </LinearGradient>
-      </TouchableOpacity>
-    );
-  };
+  const renderEventCard = ({ item }) => (
+    <EventCard
+      item={item}
+      onShare={event => handleDirectShare(event, fetchEventDetails)}
+      onEdit={event => navigation.navigate('Quotation', { eventData: event })}
+    />
+  );
 
   const formatDate = dateString => {
     const date = new Date(dateString);

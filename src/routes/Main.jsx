@@ -9,6 +9,8 @@ import SalesScreen from '../screens/Modules/SalesScreen';
 import KitchenScreen from '../screens/Modules/kitchen/KitchenScreen';
 import MoreDetailScreen from '../screens/Modules/management/MoreDetailScreen';
 import HFScreen from '../screens/Modules/kitchen/HFScreen';
+import ConfirmEventScreen from '../screens/EventStatus/ConfirmEventScreen';
+import TentativeScreen from '../screens/EventStatus/TentativeScreen';
 let Stack = createNativeStackNavigator();
 
 const Main = () => {
@@ -28,6 +30,8 @@ const Main = () => {
       <Stack.Screen name="Kitchen" component={KitchenScreen} />
       <Stack.Screen name="MoreDetail" component={MoreDetailScreen} />
       <Stack.Screen name="HF" component={HFScreen} />
+      <Stack.Screen name="ConfirmEventScreen" component={ConfirmEventScreen} />
+      <Stack.Screen name="TentativeScreen" component={TentativeScreen} />
 
     </Stack.Navigator>
   );
