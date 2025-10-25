@@ -15,7 +15,6 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useDispatch, useSelector } from 'react-redux';
 import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import COLORS from '../utils/colors';
 import api from '../utils/api';
 import { CurrentLogin, setLoader } from '../store/authSlice';
 
@@ -65,7 +64,7 @@ const LoginScreen = ({ navigation }) => {
           text1: 'Login successful!',
           visibilityTime: 1500,
         });
-        navigation.replace('Dashboard');
+        navigation.replace('Main', { screen: 'Dashboard' });
       } else {
         Toast.show({
           type: 'error',

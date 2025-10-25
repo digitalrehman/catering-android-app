@@ -36,10 +36,16 @@ const AppHeader = ({ title = '', showBack = true }) => {
     <LinearGradient colors={['#B83232', '#4A0000']} style={styles.gradient}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
       <Animated.View
-        style={[styles.headerContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+        style={[
+          styles.headerContainer,
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+        ]}
       >
         {showBack ? (
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.iconButton}
+          >
             <Icon name="arrow-left" size={22} color="#FFD700" />
           </TouchableOpacity>
         ) : (
@@ -48,7 +54,13 @@ const AppHeader = ({ title = '', showBack = true }) => {
 
         <Text style={styles.titleText}>{title}</Text>
 
-        <View style={{ width: 40 }} />
+        {/* 🔹 Right side Dashboard icon */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Dashboard')}
+          style={styles.iconButton}
+        >
+          <Icon name="view-dashboard" size={22} color="#FFD700" />
+        </TouchableOpacity>
       </Animated.View>
     </LinearGradient>
   );
