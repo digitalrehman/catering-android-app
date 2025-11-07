@@ -109,7 +109,7 @@ const ExcelCell = memo(
             keyboardType={keyboardType}
             returnKeyType="done"
             placeholder={placeholder}
-            blurOnSubmit={false} // ✅ Yeh bhi important hai
+            blurOnSubmit={true}
             showSoftInputOnFocus={true}
             selectTextOnFocus={true}
             importantForAutofill="no"
@@ -249,7 +249,7 @@ const RadioButtonColumn = memo(({ label, selected, onPress, isRateMode }) => {
   );
 });
 
-// ✅ PERFECTED: OwnerAmountInput Component
+// ✅ FIXED: OwnerAmountInput Component - COMPLETELY REWRITTEN
 const OwnerAmountInput = memo(({ value, onChange, placeholder, tableName }) => {
   const textInputRef = useRef(null);
   const [localValue, setLocalValue] = useState(String(value ?? ''));
@@ -263,7 +263,6 @@ const OwnerAmountInput = memo(({ value, onChange, placeholder, tableName }) => {
     const cleaned = text.replace(/[^0-9.]/g, '');
     if ((cleaned.match(/\./g) || []).length > 1) return;
     setLocalValue(cleaned);
-    onChange(cleaned);
   };
 
   const handleBlur = () => {
@@ -277,6 +276,11 @@ const OwnerAmountInput = memo(({ value, onChange, placeholder, tableName }) => {
     setIsFocused(true);
   };
 
+  const handleSubmitEditing = () => {
+    onChange(localValue);
+    Keyboard.dismiss(); // ✅ Keyboard band karo
+  };
+
   return (
     <TextInput
       ref={textInputRef}
@@ -284,11 +288,12 @@ const OwnerAmountInput = memo(({ value, onChange, placeholder, tableName }) => {
       onChangeText={handleChange}
       onBlur={handleBlur}
       onFocus={handleFocus}
+      onSubmitEditing={handleSubmitEditing}
       placeholder={placeholder}
       placeholderTextColor="#666"
       keyboardType="decimal-pad"
       style={styles.ownerInput}
-      blurOnSubmit={false}
+      blurOnSubmit={true} // ✅ Yeh important change hai
       returnKeyType="done"
       showSoftInputOnFocus={true}
       selectTextOnFocus={true}
@@ -296,13 +301,10 @@ const OwnerAmountInput = memo(({ value, onChange, placeholder, tableName }) => {
       autoCapitalize="none"
       contextMenuHidden={false}
       caretHidden={false}
-      onSubmitEditing={() => {
-        // Keyboard maintain rahega
-        // Kuch bhi na karein ya phir next field pe move karein
-      }}
     />
   );
 });
+
 const Quotation = ({ navigation }) => {
   const user = useSelector(state => state.Data.currentData);
   const route = useRoute();
@@ -322,6 +324,7 @@ const Quotation = ({ navigation }) => {
 
   const [manualFoodTotal, setManualFoodTotal] = useState('');
   const [manualDecTotal, setManualDecTotal] = useState('');
+  const [manualServicesTotal, setManualServicesTotal] = useState('');
   const [serviceType, setServiceType] = useState('F');
   const [rateMode, setRateMode] = useState('perhead');
   const [directors, setDirectors] = useState([]);
@@ -332,9 +335,11 @@ const Quotation = ({ navigation }) => {
   const [perHeadExpanded, setPerHeadExpanded] = useState(false);
   const [foodRows, setFoodRows] = useState(makeDefaultRows(1));
   const [decRows, setDecRows] = useState(makeDefaultRows(6));
+  const [servicesRows, setServicesRows] = useState(makeDefaultRows(11));
   const [editingCell, setEditingCell] = useState(null);
   const [foodOwnerAmount, setFoodOwnerAmount] = useState('');
   const [decOwnerAmount, setDecOwnerAmount] = useState('');
+  const [servicesOwnerAmount, setServicesOwnerAmount] = useState('');
   const [beverageType, setBeverageType] = useState('none');
   const [advanceMode, setAdvanceMode] = useState('none');
   const [cashReceived, setCashReceived] = useState('');
@@ -344,22 +349,16 @@ const Quotation = ({ navigation }) => {
   const [initialAdvance, setInitialAdvance] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  // ✅ FIXED: Keyboard handling improved
   useEffect(() => {
     const keyboardHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      if (
-        editingCell &&
-        !editingCell.includes('food-table-total') &&
-        !editingCell.includes('dec-table-total') &&
-        !editingCell.includes('owner-amount')
-      ) {
-        setEditingCell(null);
-      }
+      setEditingCell(null);
     });
 
     return () => {
       keyboardHideListener.remove();
     };
-  }, [editingCell]);
+  }, []);
 
   const showToast = msg => {
     if (Platform.OS === 'android') {
@@ -404,58 +403,63 @@ const Quotation = ({ navigation }) => {
     return () => (mounted = false);
   }, []);
 
-  // ✅ FIXED: Event type detection from API response - IMPROVED
-  const detectEventTypeFromResponse = data => {
-    const hasFood = data.status_food === 'true' && data.data_food?.length > 0;
-    const hasDecoration =
-      data.status_decoration === 'true' && data.data_decoration?.length > 0;
-    const hasBeverages =
-      data.status_beverages === 'true' && data.data_beverages?.length > 0;
+  // ✅ FIXED: Special instructions extract karna
+  const extractSpecialInstructions = data => {
+    let specialInstructions = '';
 
-    console.log('🔍 Event Type Detection:', {
-      hasFood,
-      hasDecoration,
-      hasBeverages,
-    });
-
-    if (hasFood && hasDecoration) return 'F+D';
-    if (hasFood && !hasDecoration) return 'F';
-    if (!hasFood && hasDecoration) return 'D';
-    return 'F'; // default
-  };
-
-  // ✅ FIXED: Rate mode detection from API response
-  const detectRateModeFromResponse = data => {
-    // Check if any item has "Per Head" in description
-    const allItems = [
-      ...(data.data_food || []),
-      ...(data.data_decoration || []),
-      ...(data.data_beverages || []),
-    ];
-
-    const hasPerHead = allItems.some(item =>
-      item.description?.toLowerCase().includes('per head'),
-    );
-
-    console.log('💰 Rate Mode Detection - Has Per Head:', hasPerHead);
-
-    return hasPerHead ? 'perhead' : 'perkg';
-  };
-
-  // ✅ FIXED: Beverage type detection from API response
-  const detectBeverageTypeFromResponse = data => {
-    if (data.status_beverages === 'true' && data.data_beverages?.length > 0) {
-      const beverageItem = data.data_beverages[0];
-      const beverageDesc = beverageItem.description?.toLowerCase() || '';
-      console.log('🥤 Beverage Detection:', beverageDesc);
-
-      if (beverageDesc.includes('can')) return 'can';
-      if (beverageDesc.includes('regular')) return 'regular';
+    // Food data se special instructions extract karo
+    if (data.status_food === 'true' && Array.isArray(data.data_food)) {
+      data.data_food.forEach(item => {
+        if (
+          item.description &&
+          item.description.toLowerCase().includes('special instruction')
+        ) {
+          specialInstructions = item.description
+            .replace(/special instruction[s]?:/i, '')
+            .trim();
+          console.log(
+            '📝 Found Special Instructions in food:',
+            specialInstructions,
+          );
+        }
+      });
     }
-    return 'none';
+
+    // Decoration data se bhi check karo
+    if (
+      data.status_decoration === 'true' &&
+      Array.isArray(data.data_decoration)
+    ) {
+      data.data_decoration.forEach(item => {
+        if (
+          item.description &&
+          item.description.toLowerCase().includes('special instruction') &&
+          !specialInstructions
+        ) {
+          specialInstructions = item.description
+            .replace(/special instruction[s]?:/i, '')
+            .trim();
+          console.log(
+            '📝 Found Special Instructions in decoration:',
+            specialInstructions,
+          );
+        }
+      });
+    }
+
+    // Original data se comments check karo
+    if (!specialInstructions && eventData?.originalData?.comments) {
+      specialInstructions = eventData.originalData.comments;
+      console.log(
+        '📝 Found Special Instructions in original data:',
+        specialInstructions,
+      );
+    }
+
+    return specialInstructions;
   };
 
-  // ✅ FIXED: Better event details fetching
+  // ✅ FIXED: Better event details fetching with special instructions
   const fetchEventDetails = async () => {
     try {
       if (!eventData?.id) return;
@@ -502,27 +506,28 @@ const Quotation = ({ navigation }) => {
 
       let foodPerHeadValue = '';
       let decPerHeadValue = '';
-      let specialInstructions = '';
+      let servicesPerHeadValue = '';
+
+      // ✅ FIXED: Special instructions extract karo
+      const specialInstructions = extractSpecialInstructions(data);
+      setPerHeadInfo(specialInstructions);
+      console.log('📝 Setting Special Instructions:', specialInstructions);
 
       // ✅ FIXED: Process food data
       if (data.status_food === 'true' && Array.isArray(data.data_food)) {
         const foodItems = data.data_food
-          .filter(item => item && item.description)
+          .filter(
+            item =>
+              item &&
+              item.description &&
+              !item.description.toLowerCase().includes('special instruction'),
+          )
           .map((item, idx) => {
             const quantity = parseFloat(item.quantity || 0);
             const unitPrice = parseFloat(item.unit_price || 0);
 
             if (item.description?.toLowerCase().includes('per head')) {
               foodPerHeadValue = String(unitPrice || '');
-              return null;
-            }
-
-            if (
-              item.description?.toLowerCase().includes('special instruction')
-            ) {
-              specialInstructions = item.description
-                .replace('Special Instructions:', '')
-                .trim();
               return null;
             }
 
@@ -544,44 +549,80 @@ const Quotation = ({ navigation }) => {
         console.log('🍕 Food rows set:', foodItems);
       }
 
-      // ✅ FIXED: Process decoration data - F+S ke liye bhi
+      // ✅ FIXED: Process decoration data - F+S ke liye services data process karo
       if (
         data.status_decoration === 'true' &&
         Array.isArray(data.data_decoration)
       ) {
-        const decItems = data.data_decoration
-          .filter(item => item && item.description)
-          .map((item, idx) => {
-            const quantity = parseFloat(item.quantity || 0);
-            const unitPrice = parseFloat(item.unit_price || 0);
+        if (detectedEventType === 'F+S') {
+          // Services data process karo
+          const servicesItems = data.data_decoration
+            .filter(
+              item =>
+                item &&
+                item.description &&
+                !item.description.toLowerCase().includes('special instruction'),
+            )
+            .map((item, idx) => {
+              const quantity = parseFloat(item.quantity || 0);
+              const unitPrice = parseFloat(item.unit_price || 0);
 
-            if (item.description?.toLowerCase().includes('per head')) {
-              decPerHeadValue = String(unitPrice || '');
-              return null;
-            }
+              if (item.description?.toLowerCase().includes('per head')) {
+                servicesPerHeadValue = String(unitPrice || '');
+                return null;
+              }
 
-            if (
-              item.description?.toLowerCase().includes('special instruction')
-            ) {
-              return null;
-            }
+              return {
+                id: String(idx + 11),
+                menu: item.description?.trim() || '',
+                qty: quantity > 0 ? String(quantity) : '',
+                rate: unitPrice > 0 ? String(unitPrice) : '',
+                total:
+                  quantity > 0 && unitPrice > 0
+                    ? (quantity * unitPrice).toFixed(2)
+                    : '',
+                manualTotal: false,
+              };
+            })
+            .filter(item => item !== null);
 
-            return {
-              id: String(idx + 6),
-              menu: item.description?.trim() || '',
-              qty: quantity > 0 ? String(quantity) : '',
-              rate: unitPrice > 0 ? String(unitPrice) : '',
-              total:
-                quantity > 0 && unitPrice > 0
-                  ? (quantity * unitPrice).toFixed(2)
-                  : '',
-              manualTotal: false,
-            };
-          })
-          .filter(item => item !== null);
+          setServicesRows(servicesItems.length > 0 ? servicesItems : makeDefaultRows(11));
+          console.log('🔧 Services rows set:', servicesItems);
+        } else {
+          // Decoration data process karo
+          const decItems = data.data_decoration
+            .filter(
+              item =>
+                item &&
+                item.description &&
+                !item.description.toLowerCase().includes('special instruction'),
+            )
+            .map((item, idx) => {
+              const quantity = parseFloat(item.quantity || 0);
+              const unitPrice = parseFloat(item.unit_price || 0);
 
-        setDecRows(decItems.length > 0 ? decItems : makeDefaultRows(6));
-        console.log('🎨 Decor rows set:', decItems);
+              if (item.description?.toLowerCase().includes('per head')) {
+                decPerHeadValue = String(unitPrice || '');
+                return null;
+              }
+
+              return {
+                id: String(idx + 6),
+                menu: item.description?.trim() || '',
+                qty: quantity > 0 ? String(quantity) : '',
+                rate: unitPrice > 0 ? String(unitPrice) : '',
+                total:
+                  quantity > 0 && unitPrice > 0
+                    ? (quantity * unitPrice).toFixed(2)
+                    : '',
+                manualTotal: false,
+              };
+            })
+            .filter(item => item !== null);
+
+          setDecRows(decItems.length > 0 ? decItems : makeDefaultRows(6));
+          console.log('🎨 Decor rows set:', decItems);
+        }
       }
 
       // ✅ FIXED: Director name issue - PROPERLY FIXED
@@ -614,21 +655,22 @@ const Quotation = ({ navigation }) => {
       // Set other states
       setFoodOwnerAmount(foodPerHeadValue);
       setDecOwnerAmount(decPerHeadValue);
+      setServicesOwnerAmount(servicesPerHeadValue);
       setManualFoodTotal(eventData.total || '');
-      setPerHeadInfo(specialInstructions);
 
       const advanceAmount = eventData.advance || '0';
       setCashReceived(advanceAmount);
       setInitialAdvance(parseFloat(advanceAmount) || 0);
 
-      // ✅ FIXED: Advance mode - PROPERLY FIXED
+      // ✅ FIXED: Advance mode - PROPERLY FIXED with bank_id
       console.log('💳 Advance Details:', {
         bank_id: eventData.bank_id,
         advance: eventData.advance,
         bankSelected: bankSelected,
       });
 
-      if (eventData.bank_id && eventData.bank_id !== '0') {
+      // ✅ IMPORTANT: Bank ID check karo for edit mode
+      if (eventData.bank_id && eventData.bank_id !== '0' && eventData.bank_id !== null) {
         setAdvanceMode('bank');
         setBankSelected(String(eventData.bank_id));
         setBankAmount(advanceAmount);
@@ -645,10 +687,62 @@ const Quotation = ({ navigation }) => {
     }
   };
 
+  // Helper functions for detection
+  const detectEventTypeFromResponse = data => {
+    const hasFood = data.status_food === 'true' && data.data_food?.length > 0;
+    const hasDecoration =
+      data.status_decoration === 'true' && data.data_decoration?.length > 0;
+    const hasBeverages =
+      data.status_beverages === 'true' && data.data_beverages?.length > 0;
+
+    console.log('🔍 Event Type Detection:', {
+      hasFood,
+      hasDecoration,
+      hasBeverages,
+    });
+
+    // Check if it's F+S from original data
+    const originalEventType = eventData?.originalData?.event_type;
+    console.log('📋 Original Event Type:', originalEventType);
+    
+    if (originalEventType === '4') return 'F+S';
+    if (hasFood && hasDecoration) return 'F+D';
+    if (hasFood && !hasDecoration) return 'F';
+    if (!hasFood && hasDecoration) return 'D';
+    return 'F';
+  };
+
+  const detectRateModeFromResponse = data => {
+    const allItems = [
+      ...(data.data_food || []),
+      ...(data.data_decoration || []),
+      ...(data.data_beverages || []),
+    ];
+
+    const hasPerHead = allItems.some(item =>
+      item.description?.toLowerCase().includes('per head'),
+    );
+
+    console.log('💰 Rate Mode Detection - Has Per Head:', hasPerHead);
+    return hasPerHead ? 'perhead' : 'perkg';
+  };
+
+  const detectBeverageTypeFromResponse = data => {
+    if (data.status_beverages === 'true' && data.data_beverages?.length > 0) {
+      const beverageItem = data.data_beverages[0];
+      const beverageDesc = beverageItem.description?.toLowerCase() || '';
+      console.log('🥤 Beverage Detection:', beverageDesc);
+
+      if (beverageDesc.includes('can')) return 'can';
+      if (beverageDesc.includes('regular')) return 'regular';
+    }
+    return 'none';
+  };
+
   useEffect(() => {
     if (!eventData?.id) return;
     fetchEventDetails();
-  }, [eventData, directors]); // ✅ directors ko dependency mein add kiya
+  }, [eventData, directors]);
 
   const updateClientInfo = useCallback((key, value) => {
     setClientInfo(prev => ({ ...prev, [key]: value }));
@@ -705,18 +799,29 @@ const Quotation = ({ navigation }) => {
   const guestsCount = Number(clientInfo.noOfGuest) || 0;
   const foodAutoTotal = useMemo(() => sumTable(foodRows), [foodRows]);
   const decAutoTotal = useMemo(() => sumTable(decRows), [decRows]);
+  const servicesAutoTotal = useMemo(() => sumTable(servicesRows), [servicesRows]);
   const foodOwnerTotal = (parseFloat(foodOwnerAmount || 0) || 0) * guestsCount;
   const decOwnerTotal = (parseFloat(decOwnerAmount || 0) || 0) * guestsCount;
+  const servicesOwnerTotal = (parseFloat(servicesOwnerAmount || 0) || 0) * guestsCount;
   const beverageRate =
     beverageType === 'regular' ? 250 : beverageType === 'can' ? 300 : 0;
   const beverageTotal = beverageRate * guestsCount;
+  
   const finalFoodTotal = manualFoodTotal
     ? parseFloat(manualFoodTotal)
     : foodAutoTotal + foodOwnerTotal;
+  
   const finalDecTotal = manualDecTotal
     ? parseFloat(manualDecTotal)
     : decAutoTotal + decOwnerTotal;
-  const grandTotal = finalFoodTotal + finalDecTotal + beverageTotal;
+  
+  const finalServicesTotal = manualServicesTotal
+    ? parseFloat(manualServicesTotal)
+    : servicesAutoTotal + servicesOwnerTotal;
+
+  const grandTotal = finalFoodTotal + 
+    (serviceType === 'F+S' ? finalServicesTotal : finalDecTotal) + 
+    beverageTotal;
 
   const advancePaid =
     advanceMode === 'cash'
@@ -738,15 +843,18 @@ const Quotation = ({ navigation }) => {
     });
     setManualFoodTotal('');
     setManualDecTotal('');
+    setManualServicesTotal('');
     setServiceType('F');
     setRateMode('perhead');
     setPerHeadInfo('');
     setPerHeadExpanded(false);
     setFoodRows(makeDefaultRows(1));
     setDecRows(makeDefaultRows(6));
+    setServicesRows(makeDefaultRows(11));
     setEditingCell(null);
     setFoodOwnerAmount('');
     setDecOwnerAmount('');
+    setServicesOwnerAmount('');
     setBeverageType('none');
     setAdvanceMode('none');
     setCashReceived('');
@@ -755,7 +863,7 @@ const Quotation = ({ navigation }) => {
     setInitialAdvance(0);
   };
 
-  // ✅ FIXED: Save handler with ALL issues fixed
+  // ✅ FIXED: Save handler with BANK_ID properly sent
   const handleSave = async () => {
     if (
       !clientInfo.contactNo ||
@@ -789,10 +897,12 @@ const Quotation = ({ navigation }) => {
       formData.append('so_advance', Math.round(advancePaid));
       formData.append('user_id', Number(user?.id) || 12);
 
-      // ✅ FIXED: Comments field add karo
+      // ✅ FIXED: Comments field add karo - yeh important hai
       if (perHeadInfo.trim()) {
         formData.append('comments', perHeadInfo.trim());
         console.log('📝 Comments sent:', perHeadInfo.trim());
+      } else {
+        formData.append('comments', ''); // Empty bhejo agar kuch nahi hai
       }
 
       // Date time
@@ -807,30 +917,17 @@ const Quotation = ({ navigation }) => {
       // Event type mapping
       const eventTypeMap = { D: '1', F: '2', 'F+D': '3', 'F+S': '4' };
       formData.append('event_type', eventTypeMap[serviceType] || '2');
-      console.log(
-        '🎯 Sending Event Type:',
-        serviceType,
-        '->',
-        eventTypeMap[serviceType],
-      );
 
       const salesTypeMap = { perkg: '1', perhead: '4' };
       formData.append('sales_type', salesTypeMap[rateMode] || '4');
-      console.log(
-        '💰 Sending Rate Mode:',
-        rateMode,
-        '->',
-        salesTypeMap[rateMode],
-      );
 
-      formData.append(
-        'bank_id',
-        advanceMode === 'bank' ? Number(bankSelected) || 0 : 0,
-      );
-      console.log(
-        '🏦 Sending Bank ID:',
-        advanceMode === 'bank' ? bankSelected : 0,
-      );
+      // ✅ IMPORTANT: Bank ID properly send karo
+      let bankIdToSend = 0;
+      if (advanceMode === 'bank') {
+        bankIdToSend = Number(bankSelected) || 0;
+      }
+      formData.append('bank_id', bankIdToSend);
+      console.log('🏦 Sending Bank ID:', bankIdToSend, 'Advance Mode:', advanceMode);
 
       const updateId = eventData?.id ? Number(eventData.id) : 0;
       formData.append('update_id', updateId);
@@ -854,23 +951,42 @@ const Quotation = ({ navigation }) => {
           });
         });
 
-      // ✅ FIXED: Decor/Service rows - F+S ke liye 'S' send karo
-      decRows
-        .filter(
-          r =>
-            r.menu &&
-            r.menu.trim() !== '' &&
-            !r.menu.toLowerCase().includes('per head'),
-        )
-        .forEach(r => {
-          const text1 = serviceType === 'F+S' ? 'S' : 'D'; // ✅ F+S ke liye 'S' send karo
-          salesOrderDetails.push({
-            description: r.menu,
-            quantity: r.qty && r.qty.trim() !== '' ? r.qty : '0',
-            unit_price: r.rate && r.rate.trim() !== '' ? r.rate : '0',
-            text1,
+      // ✅ FIXED: Services aur Decor rows alag alag
+      if (serviceType === 'F+S') {
+        // Services rows - text1 = 'S'
+        servicesRows
+          .filter(
+            r =>
+              r.menu &&
+              r.menu.trim() !== '' &&
+              !r.menu.toLowerCase().includes('per head'),
+          )
+          .forEach(r => {
+            salesOrderDetails.push({
+              description: r.menu,
+              quantity: r.qty && r.qty.trim() !== '' ? r.qty : '0',
+              unit_price: r.rate && r.rate.trim() !== '' ? r.rate : '0',
+              text1: 'S', // ✅ Services ke liye 'S'
+            });
           });
-        });
+      } else {
+        // Decor rows - text1 = 'D'
+        decRows
+          .filter(
+            r =>
+              r.menu &&
+              r.menu.trim() !== '' &&
+              !r.menu.toLowerCase().includes('per head'),
+          )
+          .forEach(r => {
+            salesOrderDetails.push({
+              description: r.menu,
+              quantity: r.qty && r.qty.trim() !== '' ? r.qty : '0',
+              unit_price: r.rate && r.rate.trim() !== '' ? r.rate : '0',
+              text1: 'D', // ✅ Decor ke liye 'D'
+            });
+          });
+      }
 
       // Per-head items
       if (rateMode === 'perhead') {
@@ -883,17 +999,24 @@ const Quotation = ({ navigation }) => {
           });
         }
 
-        if (decOwnerAmount && parseFloat(decOwnerAmount) > 0) {
-          const text1 = serviceType === 'F+S' ? 'S' : 'D'; // ✅ F+S ke liye 'S' send karo
-          salesOrderDetails.push({
-            description:
-              serviceType === 'F+S'
-                ? 'Services Per Head'
-                : 'Decoration Per Head',
-            quantity: clientInfo.noOfGuest || 0,
-            unit_price: decOwnerAmount,
-            text1,
-          });
+        if (serviceType === 'F+S') {
+          if (servicesOwnerAmount && parseFloat(servicesOwnerAmount) > 0) {
+            salesOrderDetails.push({
+              description: 'Services Per Head',
+              quantity: clientInfo.noOfGuest || 0,
+              unit_price: servicesOwnerAmount,
+              text1: 'S', // ✅ Services per head ke liye 'S'
+            });
+          }
+        } else {
+          if (decOwnerAmount && parseFloat(decOwnerAmount) > 0) {
+            salesOrderDetails.push({
+              description: 'Decoration Per Head',
+              quantity: clientInfo.noOfGuest || 0,
+              unit_price: decOwnerAmount,
+              text1: 'D', // ✅ Decor per head ke liye 'D'
+            });
+          }
         }
 
         if (beverageType !== 'none') {
@@ -914,7 +1037,7 @@ const Quotation = ({ navigation }) => {
       console.log('🎯 Service Type:', serviceType);
       console.log('💰 Rate Mode:', rateMode);
       console.log('🥤 Beverage Type:', beverageType);
-      console.log('💳 Advance Mode:', advanceMode);
+      console.log('💳 Advance Mode:', advanceMode, 'Bank ID:', bankIdToSend);
 
       if (salesOrderDetails.length > 0) {
         formData.append(
@@ -934,10 +1057,8 @@ const Quotation = ({ navigation }) => {
       let responseData;
       try {
         responseData = JSON.parse(text);
-        console.log('📊 Parsed Response:', responseData);
       } catch {
         responseData = { message: text };
-        console.log('❌ JSON Parse Failed, raw response:', text);
       }
 
       if (response.ok && responseData?.status !== 'false') {
@@ -961,9 +1082,9 @@ const Quotation = ({ navigation }) => {
 
   const COL_FLEX = { s_no: 0.1, menu: 0.45, qty: 0.1, rate: 0.15, total: 0.2 };
 
-  // ✅ FIXED: Table Component
+  // ✅ FIXED: Table Component for Food, Decor and Services
   const TableComponent = memo(
-    ({ rows, setRows, title, autoTotal, tableName }) => {
+    ({ rows, setRows, title, autoTotal, tableName, ownerAmount, onOwnerAmountChange, manualTotal, onManualTotalChange }) => {
       const renderRow = ({ item, index }) => (
         <TableRow
           item={item}
@@ -976,6 +1097,24 @@ const Quotation = ({ navigation }) => {
           tableName={tableName}
         />
       );
+
+      const getTotalValue = () => {
+        if (manualTotal) return manualTotal;
+        
+        let ownerTotal = 0;
+        if (tableName === 'food') ownerTotal = foodOwnerTotal;
+        else if (tableName === 'dec') ownerTotal = decOwnerTotal;
+        else if (tableName === 'services') ownerTotal = servicesOwnerTotal;
+        
+        return String(Math.round(autoTotal + Math.round(ownerTotal)));
+      };
+
+      const getEditingCellKey = () => {
+        if (tableName === 'food') return 'food-table-total';
+        if (tableName === 'dec') return 'dec-table-total';
+        if (tableName === 'services') return 'services-table-total';
+        return '';
+      };
 
       return (
         <View style={styles.section}>
@@ -1022,88 +1161,46 @@ const Quotation = ({ navigation }) => {
 
             <View style={styles.ownerAmountWrap}>
               <OwnerAmountInput
-                value={tableName === 'food' ? foodOwnerAmount : decOwnerAmount}
-                onChange={
-                  tableName === 'food' ? setFoodOwnerAmount : setDecOwnerAmount
-                }
+                value={ownerAmount}
+                onChange={onOwnerAmountChange}
                 placeholder="0"
-                tableName={tableName} // ✅ Add this prop
+                tableName={tableName}
               />
             </View>
 
-            {tableName === 'food' ? (
-              <View style={styles.totalInlineRow}>
-                <Text style={styles.totalLabelSmall}>Food Total:</Text>
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={[
-                    styles.totalCellSmall,
-                    editingCell === 'food-table-total' && {
-                      borderColor: COLORS.ACCENT,
-                      borderWidth: 2,
-                    },
-                  ]}
-                  onPress={() => setEditingCell('food-table-total')}
-                >
-                  {editingCell === 'food-table-total' ? (
-                    <TextInput
-                      autoFocus
-                      value={manualFoodTotal}
-                      onChangeText={setManualFoodTotal}
-                      keyboardType="numeric"
-                      onBlur={() => setEditingCell(null)}
-                      style={styles.totalInputSmall}
-                      onTouchStart={e => e.stopPropagation()}
-                      onFocus={e => e.stopPropagation()}
-                    />
-                  ) : (
-                    <Text style={styles.totalValueSmall}>
-                      {manualFoodTotal ||
-                        String(
-                          Math.round(autoTotal + Math.round(foodOwnerTotal)),
-                        )}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.totalInlineRow}>
-                <Text style={styles.totalLabelSmall}>
-                  {serviceType === 'F+S' ? 'Services Total' : 'Decor Total'}:
-                </Text>
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={[
-                    styles.totalCellSmall,
-                    editingCell === 'dec-table-total' && {
-                      borderColor: COLORS.ACCENT,
-                      borderWidth: 2,
-                    },
-                  ]}
-                  onPress={() => setEditingCell('dec-table-total')}
-                >
-                  {editingCell === 'dec-table-total' ? (
-                    <TextInput
-                      autoFocus
-                      value={manualDecTotal}
-                      onChangeText={setManualDecTotal}
-                      keyboardType="numeric"
-                      onBlur={() => setEditingCell(null)}
-                      style={styles.totalInputSmall}
-                      onTouchStart={e => e.stopPropagation()}
-                      onFocus={e => e.stopPropagation()}
-                    />
-                  ) : (
-                    <Text style={styles.totalValueSmall}>
-                      {manualDecTotal ||
-                        String(
-                          Math.round(autoTotal + Math.round(decOwnerTotal)),
-                        )}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
+            <View style={styles.totalInlineRow}>
+              <Text style={styles.totalLabelSmall}>
+                {title.includes('Food') ? 'Food Total' : 
+                 title.includes('Services') ? 'Services Total' : 'Decor Total'}:
+              </Text>
+              <TouchableOpacity
+                activeOpacity={1}
+                style={[
+                  styles.totalCellSmall,
+                  editingCell === getEditingCellKey() && {
+                    borderColor: COLORS.ACCENT,
+                    borderWidth: 2,
+                  },
+                ]}
+                onPress={() => setEditingCell(getEditingCellKey())}
+              >
+                {editingCell === getEditingCellKey() ? (
+                  <TextInput
+                    autoFocus
+                    value={manualTotal}
+                    onChangeText={onManualTotalChange}
+                    keyboardType="numeric"
+                    onBlur={() => setEditingCell(null)}
+                    style={styles.totalInputSmall}
+                    onSubmitEditing={() => setEditingCell(null)}
+                  />
+                ) : (
+                  <Text style={styles.totalValueSmall}>
+                    {getTotalValue()}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       );
@@ -1324,6 +1421,10 @@ const Quotation = ({ navigation }) => {
                   title="Food Details"
                   autoTotal={foodAutoTotal}
                   tableName="food"
+                  ownerAmount={foodOwnerAmount}
+                  onOwnerAmountChange={setFoodOwnerAmount}
+                  manualTotal={manualFoodTotal}
+                  onManualTotalChange={setManualFoodTotal}
                 />
 
                 <View style={styles.section}>
@@ -1395,19 +1496,33 @@ const Quotation = ({ navigation }) => {
               </>
             )}
 
-            {(serviceType === 'D' ||
-              serviceType === 'F+D' ||
-              serviceType === 'F+S') && (
+            {/* ✅ FIXED: Services Table for F+S */}
+            {serviceType === 'F+S' && (
+              <TableComponent
+                rows={servicesRows}
+                setRows={setServicesRows}
+                title="Services Details"
+                autoTotal={servicesAutoTotal}
+                tableName="services"
+                ownerAmount={servicesOwnerAmount}
+                onOwnerAmountChange={setServicesOwnerAmount}
+                manualTotal={manualServicesTotal}
+                onManualTotalChange={setManualServicesTotal}
+              />
+            )}
+
+            {/* ✅ FIXED: Decor Table for D and F+D */}
+            {(serviceType === 'D' || serviceType === 'F+D') && (
               <TableComponent
                 rows={decRows}
                 setRows={setDecRows}
-                title={
-                  serviceType === 'F+S'
-                    ? 'Services Details'
-                    : 'Decoration Details'
-                }
+                title="Decoration Details"
                 autoTotal={decAutoTotal}
                 tableName="dec"
+                ownerAmount={decOwnerAmount}
+                onOwnerAmountChange={setDecOwnerAmount}
+                manualTotal={manualDecTotal}
+                onManualTotalChange={setManualDecTotal}
               />
             )}
 
