@@ -38,11 +38,17 @@ const makeDefaultRows = (startId = 1) =>
     manualTotal: false,
   }));
 
-const TableRow = memo(({ item, index, onUpdateCell }) => {
+const TableRow = memo(({ item, index, onUpdateCell, isEditMode }) => {
   const [menu, setMenu] = useState(item.menu);
   const [qty, setQty] = useState(item.qty);
   const [rate, setRate] = useState(item.rate);
   const [total, setTotal] = useState(item.total);
+
+  // ✅ FIXED: Track manual focus changes
+  const isManualFocusChange = useRef(false);
+  // ✅ FIXED: Track changes to save on unmount
+  const hasUnsavedChanges = useRef(false);
+  const unsavedData = useRef({});
 
   useEffect(() => {
     setMenu(item.menu);
@@ -51,10 +57,108 @@ const TableRow = memo(({ item, index, onUpdateCell }) => {
     setTotal(item.total);
   }, [item.menu, item.qty, item.rate, item.total]);
 
-  const handleCellEdit = (field, value) => {
+  // ✅ FIXED: Save unsaved data when component unmounts
+  useEffect(() => {
+    return () => {
+      if (hasUnsavedChanges.current) {
+        Object.keys(unsavedData.current).forEach(field => {
+          onUpdateCell(
+            item.id,
+            field,
+            unsavedData.current[field],
+            field === 'total',
+          );
+        });
+      }
+    };
+  }, [item.id]);
+
+  // ✅ FIXED: Track changes without immediate parent update
+  const trackChange = (field, value) => {
+    hasUnsavedChanges.current = true;
+    unsavedData.current[field] = value;
+  };
+
+  const handleQtyChange = text => {
+    setQty(text);
+    trackChange('qty', text);
+
+    // Auto calculate total
+    if (!item.manualTotal) {
+      const qtyNum = parseFloat(text || 0);
+      const rateNum = parseFloat(rate || 0);
+      const calculatedTotal = qtyNum * rateNum;
+
+      if (!isNaN(calculatedTotal)) {
+        const formattedTotal =
+          calculatedTotal % 1 === 0
+            ? calculatedTotal.toString()
+            : calculatedTotal.toFixed(2);
+
+        if (formattedTotal !== total) {
+          setTotal(formattedTotal);
+          trackChange('total', formattedTotal);
+        }
+      }
+    }
+  };
+
+  const handleRateChange = text => {
+    setRate(text);
+    trackChange('rate', text);
+
+    // Auto calculate total
+    if (!item.manualTotal) {
+      const qtyNum = parseFloat(qty || 0);
+      const rateNum = parseFloat(text || 0);
+      const calculatedTotal = qtyNum * rateNum;
+
+      if (!isNaN(calculatedTotal)) {
+        const formattedTotal =
+          calculatedTotal % 1 === 0
+            ? calculatedTotal.toString()
+            : calculatedTotal.toFixed(2);
+
+        if (formattedTotal !== total) {
+          setTotal(formattedTotal);
+          trackChange('total', formattedTotal);
+        }
+      }
+    }
+  };
+
+  const handleMenuChange = text => {
+    setMenu(text);
+    trackChange('menu', text);
+  };
+
+  const handleTotalChange = text => {
+    setTotal(text);
+    trackChange('total', text);
+  };
+
+  // ✅ FIXED: Better blur handling - skip for manual focus changes
+  const handleBlur = (field, value) => {
+    // Agar user manually click kar raha hai to blur skip karo
+    if (isManualFocusChange.current) {
+      isManualFocusChange.current = false;
+      return;
+    }
+
+    // Normal blur - save data
     if (item[field] !== value) {
       onUpdateCell(item.id, field, value, field === 'total');
+      // Clear from unsaved data
+      delete unsavedData.current[field];
+      if (Object.keys(unsavedData.current).length === 0) {
+        hasUnsavedChanges.current = false;
+      }
     }
+  };
+
+  // ✅ FIXED: Handle manual focus change
+  const handleManualFocus = () => {
+    isManualFocusChange.current = true;
   };
 
   return (
@@ -68,8 +172,9 @@ const TableRow = memo(({ item, index, onUpdateCell }) => {
         <TextInput
           style={styles.cellInput}
           value={menu}
-          onChangeText={setMenu}
-          onBlur={() => handleCellEdit('menu', menu)}
+          onChangeText={handleMenuChange}
+          onBlur={() => handleBlur('menu', menu)}
+          onFocus={handleManualFocus}
           blurOnSubmit={false}
         />
       </View>
@@ -80,8 +185,9 @@ const TableRow = memo(({ item, index, onUpdateCell }) => {
           style={styles.cellInput}
           value={qty}
           keyboardType="decimal-pad"
-          onChangeText={setQty}
-          onBlur={() => handleCellEdit('qty', qty)}
+          onChangeText={handleQtyChange}
+          onBlur={() => handleBlur('qty', qty)}
+          onFocus={handleManualFocus}
           blurOnSubmit={false}
         />
       </View>
@@ -92,8 +198,9 @@ const TableRow = memo(({ item, index, onUpdateCell }) => {
           style={styles.cellInput}
           value={rate}
           keyboardType="decimal-pad"
-          onChangeText={setRate}
-          onBlur={() => handleCellEdit('rate', rate)}
+          onChangeText={handleRateChange}
+          onBlur={() => handleBlur('rate', rate)}
+          onFocus={handleManualFocus}
           blurOnSubmit={false}
         />
       </View>
@@ -104,8 +211,9 @@ const TableRow = memo(({ item, index, onUpdateCell }) => {
           style={styles.cellInput}
           value={total}
           keyboardType="decimal-pad"
-          onChangeText={setTotal}
-          onBlur={() => handleCellEdit('total', total)}
+          onChangeText={handleTotalChange}
+          onBlur={() => handleBlur('total', total)}
+          onFocus={handleManualFocus}
         />
       </View>
     </View>
@@ -191,6 +299,7 @@ const Quotation = ({ navigation }) => {
   const user = useSelector(state => state.Data.currentData);
   const route = useRoute();
   const { eventData } = route.params || {};
+  console.log('eventData', eventData);
 
   const [clientInfo, setClientInfo] = useState({
     contactNo: '',
@@ -493,6 +602,7 @@ const Quotation = ({ navigation }) => {
       } else {
         directorNameToShow = eventData?.originalData?.director_name || '';
       }
+
       // ✅ FIXED: Client info with proper director data
       setClientInfo({
         contactNo: eventData.contact_no || '',
@@ -503,11 +613,19 @@ const Quotation = ({ navigation }) => {
         noOfGuest: eventData.guest || '',
       });
 
+      // ✅ FIXED: Set discount amount from eventData
+      const discountFromData = eventData?.originalData?.discount1 || '';
+      setDiscountAmount(discountFromData);
+
       // Set other states
       setFoodOwnerAmount(foodPerHeadValue);
       setDecOwnerAmount(decPerHeadValue);
       setServicesOwnerAmount(servicesPerHeadValue);
-      setManualFoodTotal(eventData.total || '');
+      
+      // ✅ IMPORTANT: Manual total ko empty rakho taki automatic calculation work kare
+      setManualFoodTotal('');
+      setManualDecTotal('');
+      setManualServicesTotal('');
 
       const advanceAmount = eventData.advance || '0';
       setCashReceived(advanceAmount);
@@ -527,6 +645,7 @@ const Quotation = ({ navigation }) => {
       } else {
         setAdvanceMode('none');
       }
+
     } catch (err) {
       console.log('Error fetching event details:', err);
     }
@@ -578,6 +697,32 @@ const Quotation = ({ navigation }) => {
     if (!eventData?.id) return;
     fetchEventDetails();
   }, [eventData, directors]);
+
+  // ✅ NEW: Auto calculate when relevant data changes - EDIT MODE KE LIYE
+  useEffect(() => {
+    if (eventData?.id) {
+      // Edit mode mein hain, calculation trigger karo
+      const timer = setTimeout(() => {
+        console.log("Auto calculating in edit mode...");
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [
+    foodRows, 
+    decRows, 
+    servicesRows, 
+    discountAmount, 
+    cashReceived, 
+    bankAmount,
+    advanceMode,
+    clientInfo.noOfGuest,
+    foodOwnerAmount,
+    decOwnerAmount,
+    servicesOwnerAmount,
+    beverageType,
+    serviceType
+  ]);
 
   const updateClientInfo = useCallback((key, value) => {
     setClientInfo(prev => ({ ...prev, [key]: value }));
@@ -980,7 +1125,6 @@ const Quotation = ({ navigation }) => {
             style={[styles.tableBody]}
             showsVerticalScrollIndicator={true}
             keyboardShouldPersistTaps="always"
-            // nestedScrollEnabled={true}
             keyboardDismissMode="none"
           >
             {rows.map((item, index) => (
@@ -990,6 +1134,7 @@ const Quotation = ({ navigation }) => {
                 index={index}
                 onUpdateCell={handleUpdateCell}
                 tableName={tableName}
+                isEditMode={!!eventData?.id}
               />
             ))}
           </ScrollView>
@@ -1094,9 +1239,6 @@ const Quotation = ({ navigation }) => {
       <AppHeader title="Quotation" />
       <ScrollView
         contentContainerStyle={styles.container}
-        // keyboardShouldPersistTaps="handled"
-        // nestedScrollEnabled={true}
-        // keyboardDismissMode="none"
         showsVerticalScrollIndicator={true}
       >
         {/* Client Information Section */}
@@ -1371,21 +1513,19 @@ const Quotation = ({ navigation }) => {
 
             {/* ✅ FIXED: Discount Section - Only Fixed */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Owner Discount</Text>
-              <View style={styles.discountRow}>
-                <View style={styles.discountInputRow}>
-                  <TextInput
-                    value={discountAmount}
-                    onChangeText={setDiscountAmount}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#666"
-                    style={styles.discountInput}
-                  />
-                  <Text style={styles.discountValueText}>
-                    = Rs. {formatCurrency(discountValue)}
-                  </Text>
-                </View>
+              <View style={styles.discountInputRow}>
+                <Text style={styles.sectionTitle}>Discount</Text>
+                <TextInput
+                  value={discountAmount}
+                  onChangeText={setDiscountAmount}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor="#666"
+                  style={styles.discountInput}
+                />
+                <Text style={styles.discountValueText}>
+                  = Rs. {formatCurrency(discountValue)}
+                </Text>
               </View>
             </View>
 

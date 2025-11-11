@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import AppHeader from '../../components/AppHeader';
 import EventCard from '../../components/EventCard';
 import { handleDirectShare } from '../../utils/pdfShare';
+import api from '../../utils/api';
 
 const EventCalendarScreen = () => {
   const navigation = useNavigation();
@@ -49,7 +50,7 @@ const EventCalendarScreen = () => {
     try {
       setLoading(true);
       const response = await fetch(
-        'https://cat.de2solutions.com/mobile_dash/get_event_quotation_header.php',
+        `${api.baseURL}get_event_quotation_header.php`,
       );
       const data = await response.json();
 
@@ -164,7 +165,7 @@ const EventCalendarScreen = () => {
       formData.append('order_no', orderNo);
 
       const response = await fetch(
-        'https://cat.de2solutions.com/mobile_dash/get_event_food_decor_detail.php',
+        `${api.baseURL}get_event_food_decor_detail.php`,
         {
           method: 'POST',
           body: formData,

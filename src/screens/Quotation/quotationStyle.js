@@ -153,38 +153,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#fafafa',
   },
-  totalInlineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  totalLabelSmall: {
-    fontWeight: '700',
-    color: COLORS.PRIMARY_DARK,
-    fontSize: 13,
-    marginRight: 6,
-  },
-  totalCellSmall: {
-    minWidth: 70,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  totalValueSmall: { fontWeight: '700', color: COLORS.BLACK, fontSize: 13 },
-  totalInputSmall: {
-    padding: 0,
-    height: 22,
-    textAlign: 'center',
-    fontWeight: '700',
-    color: COLORS.BLACK,
-    fontSize: 13,
-  },
 
   beverageRow: {
     flexDirection: 'row',
@@ -408,6 +376,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#fafafa',
     marginRight: 12,
+    marginLeft: 6,
     textAlign: 'center',
     fontWeight: '600',
   },
@@ -442,7 +411,7 @@ const styles = StyleSheet.create({
 
   // Table Body
   tableBody: {
-    maxHeight: 300,
+    height: 'auto',
   },
 
   // Add and Totals Row
@@ -459,7 +428,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   ownerAmountWrap: {
-    flex: 1,
+    flex: 0.7,
     marginRight: 12,
   },
   ownerInput: {
