@@ -362,5 +362,152 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.DARK,
   },
+  editingCell: {
+    borderColor: COLORS.ACCENT,
+    borderWidth: 2,
+    backgroundColor: COLORS.WHITE,
+  },
+  discountRow: {
+    marginTop: 8,
+  },
+  discountTypeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 12,
+  },
+  discountTypeOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.PRIMARY,
+    backgroundColor: COLORS.WHITE,
+  },
+  discountTypeOptionActive: {
+    backgroundColor: COLORS.PRIMARY,
+  },
+  discountTypeText: {
+    color: COLORS.PRIMARY,
+    fontWeight: '600',
+  },
+  discountTypeTextActive: {
+    color: COLORS.WHITE,
+    fontWeight: '700',
+  },
+  discountInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  discountInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#fafafa',
+    marginRight: 12,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  discountValueText: {
+    fontWeight: '700',
+    color: COLORS.PRIMARY_DARK,
+    fontSize: 14,
+  },
+
+  // Sub Total Row
+  subTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  subTotalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.PRIMARY_DARK,
+  },
+  subTotalValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.PRIMARY_DARK,
+  },
+
+  // Table Body
+  tableBody: {
+    maxHeight: 300,
+  },
+
+  // Add and Totals Row
+  addAndTotalsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    justifyContent: 'space-between',
+  },
+  smallAddLeft: {
+    backgroundColor: COLORS.PRIMARY,
+    padding: 10,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  ownerAmountWrap: {
+    flex: 1,
+    marginRight: 12,
+  },
+  ownerInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#fafafa',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  ownerInputFocused: {
+    borderColor: COLORS.ACCENT,
+    borderWidth: 2,
+    backgroundColor: COLORS.WHITE,
+  },
+  totalInlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  totalLabelSmall: {
+    fontWeight: '600',
+    color: COLORS.PRIMARY_DARK,
+    fontSize: 13,
+    marginRight: 8,
+  },
+  totalCellSmall: {
+    minWidth: 80,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#e9ecef',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  totalValueSmall: {
+    fontWeight: '700',
+    color: COLORS.PRIMARY_DARK,
+    fontSize: 14,
+  },
+
+  // Number formatting for all amount displays
+  amountText: {
+    fontWeight: '600',
+    color: COLORS.PRIMARY_DARK,
+  },
 });
 export default styles;

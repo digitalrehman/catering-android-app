@@ -14,9 +14,7 @@ import {
   ScrollView,
   Platform,
   ActivityIndicator,
-  FlatList,
   ToastAndroid,
-  Keyboard,
   Modal,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -40,186 +38,79 @@ const makeDefaultRows = (startId = 1) =>
     manualTotal: false,
   }));
 
-const ExcelCell = memo(
-  ({
-    value,
-    onChange,
-    keyboardType = 'default',
-    onRequestEdit,
-    isEditing,
-    highlight,
-    flex,
-    placeholder = '',
-  }) => {
-    const textInputRef = useRef(null);
-    const [localValue, setLocalValue] = useState(value);
-    const [isFocused, setIsFocused] = useState(false);
+const TableRow = memo(({ item, index, onUpdateCell }) => {
+  const [menu, setMenu] = useState(item.menu);
+  const [qty, setQty] = useState(item.qty);
+  const [rate, setRate] = useState(item.rate);
+  const [total, setTotal] = useState(item.total);
 
-    useEffect(() => {
-      setLocalValue(value);
-    }, [value]);
+  useEffect(() => {
+    setMenu(item.menu);
+    setQty(item.qty);
+    setRate(item.rate);
+    setTotal(item.total);
+  }, [item.menu, item.qty, item.rate, item.total]);
 
-    useEffect(() => {
-      if (isEditing && textInputRef.current) {
-        const timeout = setTimeout(() => {
-          textInputRef.current?.focus();
-        }, 50);
-        return () => clearTimeout(timeout);
-      }
-    }, [isEditing]);
+  const handleCellEdit = (field, value) => {
+    if (item[field] !== value) {
+      onUpdateCell(item.id, field, value, field === 'total');
+    }
+  };
 
-    const handleTextChange = text => {
-      setLocalValue(text);
-    };
+  return (
+    <View style={styles.row}>
+      <View style={[styles.cell, { flex: 0.1 }]}>
+        <Text style={styles.cellText}>{index + 1}</Text>
+      </View>
 
-    const handleBlur = () => {
-      setIsFocused(false);
-      if (localValue !== value) onChange(localValue);
-    };
-
-    const handleFocus = () => {
-      setIsFocused(true);
-    };
-
-    const handleSubmitEditing = () => {
-      onChange(localValue);
-    };
-
-    return (
-      <TouchableOpacity
-        activeOpacity={1}
-        style={[
-          styles.cell,
-          highlight && { borderColor: COLORS.ACCENT, borderWidth: 2 },
-          { flex },
-        ]}
-        onPress={() => {
-          onRequestEdit && onRequestEdit();
-        }}
-      >
-        {isEditing ? (
-          <TextInput
-            ref={textInputRef}
-            value={localValue}
-            style={styles.cellInput}
-            onChangeText={handleTextChange}
-            onBlur={handleBlur}
-            onFocus={handleFocus}
-            onSubmitEditing={handleSubmitEditing}
-            keyboardType={keyboardType}
-            returnKeyType="done"
-            placeholder={placeholder}
-            blurOnSubmit={true}
-            showSoftInputOnFocus={true}
-            selectTextOnFocus={true}
-            importantForAutofill="no"
-            autoCorrect={false}
-            autoCapitalize="none"
-          />
-        ) : (
-          <Text style={styles.cellText}>{value}</Text>
-        )}
-      </TouchableOpacity>
-    );
-  },
-);
-
-// ✅ FIXED: TableRow Component
-const TableRow = memo(
-  ({ item, index, onUpdateCell, editingCell, setEditingCell, tableName }) => {
-    const cellKey = useCallback(
-      key => `${tableName}-${item.id}-${key}`,
-      [tableName, item.id],
-    );
-
-    const handleCellPress = useCallback(
-      key => setEditingCell(cellKey(key)),
-      [cellKey, setEditingCell],
-    );
-
-    const handleUpdateMenu = useCallback(
-      t => onUpdateCell(item.id, 'menu', t),
-      [onUpdateCell, item.id],
-    );
-
-    const handleUpdateQty = useCallback(
-      t => onUpdateCell(item.id, 'qty', t),
-      [onUpdateCell, item.id],
-    );
-
-    const handleUpdateRate = useCallback(
-      t => onUpdateCell(item.id, 'rate', t),
-      [onUpdateCell, item.id],
-    );
-
-    const handleUpdateTotal = useCallback(
-      t => onUpdateCell(item.id, 'total', t, true),
-      [onUpdateCell, item.id],
-    );
-
-    return (
-      <View style={styles.row} key={item.id}>
-        <View style={[styles.cell, { flex: 0.1 }]}>
-          <Text style={styles.cellText}>{index + 1}</Text>
-        </View>
-
-        <ExcelCell
-          value={item.menu}
-          flex={0.45}
-          onChange={handleUpdateMenu}
-          onRequestEdit={() => handleCellPress('menu')}
-          isEditing={editingCell === cellKey('menu')}
-          highlight={editingCell === cellKey('menu')}
-          placeholder="Detail"
-        />
-
-        <ExcelCell
-          value={String(item.qty)}
-          flex={0.1}
-          keyboardType="numeric"
-          onChange={handleUpdateQty}
-          onRequestEdit={() => handleCellPress('qty')}
-          isEditing={editingCell === cellKey('qty')}
-          highlight={editingCell === cellKey('qty')}
-          placeholder="0"
-        />
-
-        <ExcelCell
-          value={String(item.rate)}
-          flex={0.15}
-          keyboardType="numeric"
-          onChange={handleUpdateRate}
-          onRequestEdit={() => handleCellPress('rate')}
-          isEditing={editingCell === cellKey('rate')}
-          highlight={editingCell === cellKey('rate')}
-          placeholder="0"
-        />
-
-        <ExcelCell
-          value={item.total ? String(Math.round(parseFloat(item.total))) : ''}
-          flex={0.2}
-          keyboardType="numeric"
-          onChange={handleUpdateTotal}
-          onRequestEdit={() => handleCellPress('total')}
-          isEditing={editingCell === cellKey('total')}
-          highlight={editingCell === cellKey('total')}
-          placeholder="0"
+      {/* Menu */}
+      <View style={[styles.cell, { flex: 0.45 }]}>
+        <TextInput
+          style={styles.cellInput}
+          value={menu}
+          onChangeText={setMenu}
+          onBlur={() => handleCellEdit('menu', menu)}
+          blurOnSubmit={false}
         />
       </View>
-    );
-  },
-  (prevProps, nextProps) => {
-    return (
-      prevProps.item.id === nextProps.item.id &&
-      prevProps.item.menu === nextProps.item.menu &&
-      prevProps.item.qty === nextProps.item.qty &&
-      prevProps.item.rate === nextProps.item.rate &&
-      prevProps.item.total === nextProps.item.total &&
-      prevProps.editingCell === nextProps.editingCell &&
-      prevProps.index === nextProps.index
-    );
-  },
-);
+
+      {/* Qty */}
+      <View style={[styles.cell, { flex: 0.1 }]}>
+        <TextInput
+          style={styles.cellInput}
+          value={qty}
+          keyboardType="decimal-pad"
+          onChangeText={setQty}
+          onBlur={() => handleCellEdit('qty', qty)}
+          blurOnSubmit={false}
+        />
+      </View>
+
+      {/* Rate */}
+      <View style={[styles.cell, { flex: 0.15 }]}>
+        <TextInput
+          style={styles.cellInput}
+          value={rate}
+          keyboardType="decimal-pad"
+          onChangeText={setRate}
+          onBlur={() => handleCellEdit('rate', rate)}
+          blurOnSubmit={false}
+        />
+      </View>
+
+      {/* Total */}
+      <View style={[styles.cell, { flex: 0.2 }]}>
+        <TextInput
+          style={styles.cellInput}
+          value={total}
+          keyboardType="decimal-pad"
+          onChangeText={setTotal}
+          onBlur={() => handleCellEdit('total', total)}
+        />
+      </View>
+    </View>
+  );
+});
 
 // ✅ FIXED: Radio Button Component
 const RadioButtonColumn = memo(({ label, selected, onPress, isRateMode }) => {
@@ -249,19 +140,19 @@ const RadioButtonColumn = memo(({ label, selected, onPress, isRateMode }) => {
   );
 });
 
-// ✅ FIXED: OwnerAmountInput Component - COMPLETELY REWRITTEN
-const OwnerAmountInput = memo(({ value, onChange, placeholder, tableName }) => {
+// ✅ FIXED: OwnerAmountInput with proper formatting
+const OwnerAmountInput = memo(({ value, onChange, tableName }) => {
   const textInputRef = useRef(null);
-  const [localValue, setLocalValue] = useState(String(value ?? ''));
+  const [localValue, setLocalValue] = useState(value || '');
   const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
-    setLocalValue(String(value ?? ''));
+    setLocalValue(value || '');
   }, [value]);
 
   const handleChange = text => {
+    // Allow only numbers and decimal
     const cleaned = text.replace(/[^0-9.]/g, '');
-    if ((cleaned.match(/\./g) || []).length > 1) return;
     setLocalValue(cleaned);
   };
 
@@ -277,8 +168,7 @@ const OwnerAmountInput = memo(({ value, onChange, placeholder, tableName }) => {
   };
 
   const handleSubmitEditing = () => {
-    onChange(localValue);
-    Keyboard.dismiss(); // ✅ Keyboard band karo
+    handleBlur();
   };
 
   return (
@@ -289,18 +179,10 @@ const OwnerAmountInput = memo(({ value, onChange, placeholder, tableName }) => {
       onBlur={handleBlur}
       onFocus={handleFocus}
       onSubmitEditing={handleSubmitEditing}
-      placeholder={placeholder}
-      placeholderTextColor="#666"
-      keyboardType="decimal-pad"
-      style={styles.ownerInput}
-      blurOnSubmit={true} // ✅ Yeh important change hai
+      keyboardType="numeric"
+      style={[styles.ownerInput, isFocused && styles.ownerInputFocused]}
+      blurOnSubmit={false}
       returnKeyType="done"
-      showSoftInputOnFocus={true}
-      selectTextOnFocus={true}
-      autoCorrect={false}
-      autoCapitalize="none"
-      contextMenuHidden={false}
-      caretHidden={false}
     />
   );
 });
@@ -310,9 +192,6 @@ const Quotation = ({ navigation }) => {
   const route = useRoute();
   const { eventData } = route.params || {};
 
-  console.log('🚩 Quotation Screen Loaded with eventData:', eventData);
-  console.log('🎯 Director Data:', eventData?.originalData?.director_name);
-
   const [clientInfo, setClientInfo] = useState({
     contactNo: '',
     name: '',
@@ -321,7 +200,7 @@ const Quotation = ({ navigation }) => {
     director: '',
     noOfGuest: '',
   });
-
+  const [discountAmount, setDiscountAmount] = useState('');
   const [manualFoodTotal, setManualFoodTotal] = useState('');
   const [manualDecTotal, setManualDecTotal] = useState('');
   const [manualServicesTotal, setManualServicesTotal] = useState('');
@@ -336,7 +215,6 @@ const Quotation = ({ navigation }) => {
   const [foodRows, setFoodRows] = useState(makeDefaultRows(1));
   const [decRows, setDecRows] = useState(makeDefaultRows(6));
   const [servicesRows, setServicesRows] = useState(makeDefaultRows(11));
-  const [editingCell, setEditingCell] = useState(null);
   const [foodOwnerAmount, setFoodOwnerAmount] = useState('');
   const [decOwnerAmount, setDecOwnerAmount] = useState('');
   const [servicesOwnerAmount, setServicesOwnerAmount] = useState('');
@@ -349,16 +227,16 @@ const Quotation = ({ navigation }) => {
   const [initialAdvance, setInitialAdvance] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // ✅ FIXED: Keyboard handling improved
-  useEffect(() => {
-    const keyboardHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setEditingCell(null);
-    });
+  // ✅ Format currency for display
+  const formatCurrency = amount => {
+    if (!amount && amount !== 0) return '0';
+    const number = parseFloat(amount);
+    if (isNaN(number)) return '0';
 
-    return () => {
-      keyboardHideListener.remove();
-    };
-  }, []);
+    // Remove .00 if whole number
+    const formatted = number.toLocaleString('en-IN');
+    return formatted.endsWith('.00') ? formatted.split('.')[0] : formatted;
+  };
 
   const showToast = msg => {
     if (Platform.OS === 'android') {
@@ -417,10 +295,6 @@ const Quotation = ({ navigation }) => {
           specialInstructions = item.description
             .replace(/special instruction[s]?:/i, '')
             .trim();
-          console.log(
-            '📝 Found Special Instructions in food:',
-            specialInstructions,
-          );
         }
       });
     }
@@ -439,10 +313,6 @@ const Quotation = ({ navigation }) => {
           specialInstructions = item.description
             .replace(/special instruction[s]?:/i, '')
             .trim();
-          console.log(
-            '📝 Found Special Instructions in decoration:',
-            specialInstructions,
-          );
         }
       });
     }
@@ -450,10 +320,6 @@ const Quotation = ({ navigation }) => {
     // Original data se comments check karo
     if (!specialInstructions && eventData?.originalData?.comments) {
       specialInstructions = eventData.originalData.comments;
-      console.log(
-        '📝 Found Special Instructions in original data:',
-        specialInstructions,
-      );
     }
 
     return specialInstructions;
@@ -463,9 +329,6 @@ const Quotation = ({ navigation }) => {
   const fetchEventDetails = async () => {
     try {
       if (!eventData?.id) return;
-
-      console.log('🔄 Fetching event details for:', eventData.id);
-
       const formData = new FormData();
       formData.append('order_no', eventData.id);
 
@@ -477,7 +340,6 @@ const Quotation = ({ navigation }) => {
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
       const text = await res.text();
-      console.log('📄 Raw API Response:', text);
 
       let data;
       try {
@@ -487,22 +349,17 @@ const Quotation = ({ navigation }) => {
         return;
       }
 
-      console.log('📊 Parsed API data:', data);
-
       // ✅ FIXED: Event type detection from API response
       const detectedEventType = detectEventTypeFromResponse(data);
       setServiceType(detectedEventType);
-      console.log('🎛️ Detected Service Type:', detectedEventType);
 
       // ✅ FIXED: Rate mode detection
       const detectedRateMode = detectRateModeFromResponse(data);
       setRateMode(detectedRateMode);
-      console.log('💰 Detected Rate Mode:', detectedRateMode);
 
       // ✅ FIXED: Beverage type detection
       const detectedBeverageType = detectBeverageTypeFromResponse(data);
       setBeverageType(detectedBeverageType);
-      console.log('🥤 Detected Beverage Type:', detectedBeverageType);
 
       let foodPerHeadValue = '';
       let decPerHeadValue = '';
@@ -511,7 +368,6 @@ const Quotation = ({ navigation }) => {
       // ✅ FIXED: Special instructions extract karo
       const specialInstructions = extractSpecialInstructions(data);
       setPerHeadInfo(specialInstructions);
-      console.log('📝 Setting Special Instructions:', specialInstructions);
 
       // ✅ FIXED: Process food data
       if (data.status_food === 'true' && Array.isArray(data.data_food)) {
@@ -546,7 +402,6 @@ const Quotation = ({ navigation }) => {
           .filter(item => item !== null);
 
         setFoodRows(foodItems.length > 0 ? foodItems : makeDefaultRows(1));
-        console.log('🍕 Food rows set:', foodItems);
       }
 
       // ✅ FIXED: Process decoration data - F+S ke liye services data process karo
@@ -586,8 +441,9 @@ const Quotation = ({ navigation }) => {
             })
             .filter(item => item !== null);
 
-          setServicesRows(servicesItems.length > 0 ? servicesItems : makeDefaultRows(11));
-          console.log('🔧 Services rows set:', servicesItems);
+          setServicesRows(
+            servicesItems.length > 0 ? servicesItems : makeDefaultRows(11),
+          );
         } else {
           // Decoration data process karo
           const decItems = data.data_decoration
@@ -621,14 +477,12 @@ const Quotation = ({ navigation }) => {
             .filter(item => item !== null);
 
           setDecRows(decItems.length > 0 ? decItems : makeDefaultRows(6));
-          console.log('🎨 Decor rows set:', decItems);
         }
       }
 
       // ✅ FIXED: Director name issue - PROPERLY FIXED
       const directorId =
         eventData?.originalData?.director_id || eventData?.director_id;
-      console.log('🎯 Director ID:', directorId);
 
       let directorNameToShow = '';
       if (directorId && directors.length > 0) {
@@ -639,9 +493,6 @@ const Quotation = ({ navigation }) => {
       } else {
         directorNameToShow = eventData?.originalData?.director_name || '';
       }
-
-      console.log('🎯 Setting director:', directorNameToShow);
-
       // ✅ FIXED: Client info with proper director data
       setClientInfo({
         contactNo: eventData.contact_no || '',
@@ -662,25 +513,19 @@ const Quotation = ({ navigation }) => {
       setCashReceived(advanceAmount);
       setInitialAdvance(parseFloat(advanceAmount) || 0);
 
-      // ✅ FIXED: Advance mode - PROPERLY FIXED with bank_id
-      console.log('💳 Advance Details:', {
-        bank_id: eventData.bank_id,
-        advance: eventData.advance,
-        bankSelected: bankSelected,
-      });
-
       // ✅ IMPORTANT: Bank ID check karo for edit mode
-      if (eventData.bank_id && eventData.bank_id !== '0' && eventData.bank_id !== null) {
+      if (
+        eventData.bank_id &&
+        eventData.bank_id !== '0' &&
+        eventData.bank_id !== null
+      ) {
         setAdvanceMode('bank');
         setBankSelected(String(eventData.bank_id));
         setBankAmount(advanceAmount);
-        console.log('🏦 Bank Mode Set with ID:', eventData.bank_id);
       } else if (advanceAmount && parseFloat(advanceAmount) > 0) {
         setAdvanceMode('cash');
-        console.log('💵 Cash Mode Set');
       } else {
         setAdvanceMode('none');
-        console.log('❌ No Advance Mode');
       }
     } catch (err) {
       console.log('Error fetching event details:', err);
@@ -695,16 +540,9 @@ const Quotation = ({ navigation }) => {
     const hasBeverages =
       data.status_beverages === 'true' && data.data_beverages?.length > 0;
 
-    console.log('🔍 Event Type Detection:', {
-      hasFood,
-      hasDecoration,
-      hasBeverages,
-    });
-
     // Check if it's F+S from original data
     const originalEventType = eventData?.originalData?.event_type;
-    console.log('📋 Original Event Type:', originalEventType);
-    
+
     if (originalEventType === '4') return 'F+S';
     if (hasFood && hasDecoration) return 'F+D';
     if (hasFood && !hasDecoration) return 'F';
@@ -723,7 +561,6 @@ const Quotation = ({ navigation }) => {
       item.description?.toLowerCase().includes('per head'),
     );
 
-    console.log('💰 Rate Mode Detection - Has Per Head:', hasPerHead);
     return hasPerHead ? 'perhead' : 'perkg';
   };
 
@@ -731,8 +568,6 @@ const Quotation = ({ navigation }) => {
     if (data.status_beverages === 'true' && data.data_beverages?.length > 0) {
       const beverageItem = data.data_beverages[0];
       const beverageDesc = beverageItem.description?.toLowerCase() || '';
-      console.log('🥤 Beverage Detection:', beverageDesc);
-
       if (beverageDesc.includes('can')) return 'can';
       if (beverageDesc.includes('regular')) return 'regular';
     }
@@ -748,6 +583,7 @@ const Quotation = ({ navigation }) => {
     setClientInfo(prev => ({ ...prev, [key]: value }));
   }, []);
 
+  // ✅ FIXED: updateRow function jo properly use ho raha hai
   const updateRow = useCallback(
     (rowsSetter, id, key, value, markManual = false) => {
       rowsSetter(prev => {
@@ -765,7 +601,12 @@ const Quotation = ({ navigation }) => {
         if (!item.manualTotal && (key === 'qty' || key === 'rate')) {
           const q = parseFloat(item.qty || 0);
           const rt = parseFloat(item.rate || 0);
-          item.total = !isNaN(q) && !isNaN(rt) ? (q * rt).toFixed(2) : '';
+          const calculatedTotal =
+            !isNaN(q) && !isNaN(rt) ? (q * rt).toFixed(2) : '';
+          // Remove .00 if whole number
+          item.total = calculatedTotal.endsWith('.00')
+            ? calculatedTotal.split('.')[0]
+            : calculatedTotal;
         }
         next[idx] = item;
         return next;
@@ -795,33 +636,42 @@ const Quotation = ({ navigation }) => {
   const sumTable = rows =>
     rows.reduce((acc, r) => acc + (parseFloat(r.total || 0) || 0), 0);
 
-  // Calculations
   const guestsCount = Number(clientInfo.noOfGuest) || 0;
   const foodAutoTotal = useMemo(() => sumTable(foodRows), [foodRows]);
   const decAutoTotal = useMemo(() => sumTable(decRows), [decRows]);
-  const servicesAutoTotal = useMemo(() => sumTable(servicesRows), [servicesRows]);
+  const servicesAutoTotal = useMemo(
+    () => sumTable(servicesRows),
+    [servicesRows],
+  );
   const foodOwnerTotal = (parseFloat(foodOwnerAmount || 0) || 0) * guestsCount;
   const decOwnerTotal = (parseFloat(decOwnerAmount || 0) || 0) * guestsCount;
-  const servicesOwnerTotal = (parseFloat(servicesOwnerAmount || 0) || 0) * guestsCount;
+  const servicesOwnerTotal =
+    (parseFloat(servicesOwnerAmount || 0) || 0) * guestsCount;
   const beverageRate =
     beverageType === 'regular' ? 250 : beverageType === 'can' ? 300 : 0;
   const beverageTotal = beverageRate * guestsCount;
-  
+
   const finalFoodTotal = manualFoodTotal
     ? parseFloat(manualFoodTotal)
     : foodAutoTotal + foodOwnerTotal;
-  
+
   const finalDecTotal = manualDecTotal
     ? parseFloat(manualDecTotal)
     : decAutoTotal + decOwnerTotal;
-  
+
   const finalServicesTotal = manualServicesTotal
     ? parseFloat(manualServicesTotal)
     : servicesAutoTotal + servicesOwnerTotal;
 
-  const grandTotal = finalFoodTotal + 
-    (serviceType === 'F+S' ? finalServicesTotal : finalDecTotal) + 
+  // ✅ UPDATED: Calculate subtotal before discount
+  const subTotal =
+    finalFoodTotal +
+    (serviceType === 'F+S' ? finalServicesTotal : finalDecTotal) +
     beverageTotal;
+
+  // ✅ FIXED: Only fixed discount
+  const discountValue = parseFloat(discountAmount) || 0;
+  const grandTotal = Math.max(0, subTotal - discountValue);
 
   const advancePaid =
     advanceMode === 'cash'
@@ -851,7 +701,6 @@ const Quotation = ({ navigation }) => {
     setFoodRows(makeDefaultRows(1));
     setDecRows(makeDefaultRows(6));
     setServicesRows(makeDefaultRows(11));
-    setEditingCell(null);
     setFoodOwnerAmount('');
     setDecOwnerAmount('');
     setServicesOwnerAmount('');
@@ -863,7 +712,6 @@ const Quotation = ({ navigation }) => {
     setInitialAdvance(0);
   };
 
-  // ✅ FIXED: Save handler with BANK_ID properly sent
   const handleSave = async () => {
     if (
       !clientInfo.contactNo ||
@@ -897,12 +745,16 @@ const Quotation = ({ navigation }) => {
       formData.append('so_advance', Math.round(advancePaid));
       formData.append('user_id', Number(user?.id) || 12);
 
+      // ✅ FIXED: Use discount1 field name
+      if (discountAmount) {
+        formData.append('discount1', discountAmount);
+      }
+
       // ✅ FIXED: Comments field add karo - yeh important hai
       if (perHeadInfo.trim()) {
         formData.append('comments', perHeadInfo.trim());
-        console.log('📝 Comments sent:', perHeadInfo.trim());
       } else {
-        formData.append('comments', ''); // Empty bhejo agar kuch nahi hai
+        formData.append('comments', '');
       }
 
       // Date time
@@ -927,7 +779,6 @@ const Quotation = ({ navigation }) => {
         bankIdToSend = Number(bankSelected) || 0;
       }
       formData.append('bank_id', bankIdToSend);
-      console.log('🏦 Sending Bank ID:', bankIdToSend, 'Advance Mode:', advanceMode);
 
       const updateId = eventData?.id ? Number(eventData.id) : 0;
       formData.append('update_id', updateId);
@@ -966,7 +817,7 @@ const Quotation = ({ navigation }) => {
               description: r.menu,
               quantity: r.qty && r.qty.trim() !== '' ? r.qty : '0',
               unit_price: r.rate && r.rate.trim() !== '' ? r.rate : '0',
-              text1: 'S', // ✅ Services ke liye 'S'
+              text1: 'S',
             });
           });
       } else {
@@ -983,7 +834,7 @@ const Quotation = ({ navigation }) => {
               description: r.menu,
               quantity: r.qty && r.qty.trim() !== '' ? r.qty : '0',
               unit_price: r.rate && r.rate.trim() !== '' ? r.rate : '0',
-              text1: 'D', // ✅ Decor ke liye 'D'
+              text1: 'D',
             });
           });
       }
@@ -1005,7 +856,7 @@ const Quotation = ({ navigation }) => {
               description: 'Services Per Head',
               quantity: clientInfo.noOfGuest || 0,
               unit_price: servicesOwnerAmount,
-              text1: 'S', // ✅ Services per head ke liye 'S'
+              text1: 'S',
             });
           }
         } else {
@@ -1014,7 +865,7 @@ const Quotation = ({ navigation }) => {
               description: 'Decoration Per Head',
               quantity: clientInfo.noOfGuest || 0,
               unit_price: decOwnerAmount,
-              text1: 'D', // ✅ Decor per head ke liye 'D'
+              text1: 'D',
             });
           }
         }
@@ -1033,12 +884,6 @@ const Quotation = ({ navigation }) => {
         }
       }
 
-      console.log('📤 Sending sales order details:', salesOrderDetails);
-      console.log('🎯 Service Type:', serviceType);
-      console.log('💰 Rate Mode:', rateMode);
-      console.log('🥤 Beverage Type:', beverageType);
-      console.log('💳 Advance Mode:', advanceMode, 'Bank ID:', bankIdToSend);
-
       if (salesOrderDetails.length > 0) {
         formData.append(
           'sales_order_details',
@@ -1052,7 +897,6 @@ const Quotation = ({ navigation }) => {
       );
 
       const text = await response.text();
-      console.log('📥 Server response:', text);
 
       let responseData;
       try {
@@ -1080,78 +924,79 @@ const Quotation = ({ navigation }) => {
     }
   };
 
-  const COL_FLEX = { s_no: 0.1, menu: 0.45, qty: 0.1, rate: 0.15, total: 0.2 };
-
-  // ✅ FIXED: Table Component for Food, Decor and Services
+  // ✅ FIXED: TableComponent jo aapke updateRow function ko use karega
   const TableComponent = memo(
-    ({ rows, setRows, title, autoTotal, tableName, ownerAmount, onOwnerAmountChange, manualTotal, onManualTotalChange }) => {
-      const renderRow = ({ item, index }) => (
-        <TableRow
-          item={item}
-          index={index}
-          onUpdateCell={(id, key, value, markManual) =>
-            updateRow(setRows, id, key, value, markManual)
-          }
-          editingCell={editingCell}
-          setEditingCell={setEditingCell}
-          tableName={tableName}
-        />
+    ({
+      rows,
+      setRows,
+      title,
+      tableName,
+      ownerAmount,
+      onOwnerAmountChange,
+      manualTotal,
+      onManualTotalChange,
+      autoTotal,
+    }) => {
+      // ✅ Yahan global updateRow function ko use karo
+      const handleUpdateCell = useCallback(
+        (id, key, value, markManual = false) => {
+          updateRow(setRows, id, key, value, markManual);
+        },
+        [setRows],
       );
 
+      // ✅ Calculate total for this table
       const getTotalValue = () => {
-        if (manualTotal) return manualTotal;
-        
-        let ownerTotal = 0;
-        if (tableName === 'food') ownerTotal = foodOwnerTotal;
-        else if (tableName === 'dec') ownerTotal = decOwnerTotal;
-        else if (tableName === 'services') ownerTotal = servicesOwnerTotal;
-        
-        return String(Math.round(autoTotal + Math.round(ownerTotal)));
-      };
+        if (manualTotal) return formatCurrency(manualTotal);
 
-      const getEditingCellKey = () => {
-        if (tableName === 'food') return 'food-table-total';
-        if (tableName === 'dec') return 'dec-table-total';
-        if (tableName === 'services') return 'services-table-total';
-        return '';
+        let ownerTotal = 0;
+        const guestsCount = Number(clientInfo.noOfGuest) || 0;
+
+        if (tableName === 'food')
+          ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
+        else if (tableName === 'dec')
+          ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
+        else if (tableName === 'services')
+          ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
+
+        return formatCurrency(autoTotal + ownerTotal);
       };
 
       return (
         <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>
-              {title} {rateMode === 'perhead' ? '(Per Head)' : '(Per KG)'}
-            </Text>
-          </View>
+          <Text style={styles.sectionTitle}>
+            {title} {rateMode === 'perhead' ? '(Per Head)' : '(Per KG)'}
+          </Text>
 
           <View style={styles.headerRow}>
-            <Text style={[styles.headerCell, { flex: COL_FLEX.s_no }]}>S#</Text>
-            <Text style={[styles.headerCell, { flex: COL_FLEX.menu }]}>
-              Detail
-            </Text>
-            <Text style={[styles.headerCell, { flex: COL_FLEX.qty }]}>Qty</Text>
-            <Text style={[styles.headerCell, { flex: COL_FLEX.rate }]}>
-              Rate
-            </Text>
-            <Text style={[styles.headerCell, { flex: COL_FLEX.total }]}>
-              Total
-            </Text>
+            <Text style={[styles.headerCell, { flex: 0.1 }]}>S#</Text>
+            <Text style={[styles.headerCell, { flex: 0.45 }]}>Detail</Text>
+            <Text style={[styles.headerCell, { flex: 0.1 }]}>Qty</Text>
+            <Text style={[styles.headerCell, { flex: 0.15 }]}>Rate</Text>
+            <Text style={[styles.headerCell, { flex: 0.2 }]}>Total</Text>
           </View>
 
-          <FlatList
-            data={rows}
-            keyExtractor={item => `${tableName}-${item.id}`}
-            renderItem={renderRow}
-            scrollEnabled={false}
-            nestedScrollEnabled={true}
-            style={{ maxHeight: rows.length * 50 }}
-            initialNumToRender={10}
-            windowSize={5}
-            maxToRenderPerBatch={8}
-            removeClippedSubviews={Platform.OS === 'android'}
-          />
+          <ScrollView
+            style={[styles.tableBody]}
+            showsVerticalScrollIndicator={true}
+            keyboardShouldPersistTaps="always"
+            // nestedScrollEnabled={true}
+            keyboardDismissMode="none"
+          >
+            {rows.map((item, index) => (
+              <TableRow
+                key={`${tableName}-${item.id}-${index}`}
+                item={item}
+                index={index}
+                onUpdateCell={handleUpdateCell}
+                tableName={tableName}
+              />
+            ))}
+          </ScrollView>
 
+          {/* ✅ FIXED: Add Row, Owner Amount, and Total in one row */}
           <View style={styles.addAndTotalsRow}>
+            {/* Add Row Button */}
             <TouchableOpacity
               style={styles.smallAddLeft}
               onPress={() => addRow(rows, setRows)}
@@ -1159,47 +1004,28 @@ const Quotation = ({ navigation }) => {
               <Ionicons name="add" size={18} color={COLORS.WHITE} />
             </TouchableOpacity>
 
+            {/* Owner Amount Input */}
             <View style={styles.ownerAmountWrap}>
               <OwnerAmountInput
                 value={ownerAmount}
                 onChange={onOwnerAmountChange}
-                placeholder="0"
                 tableName={tableName}
               />
             </View>
 
+            {/* Total Display */}
             <View style={styles.totalInlineRow}>
               <Text style={styles.totalLabelSmall}>
-                {title.includes('Food') ? 'Food Total' : 
-                 title.includes('Services') ? 'Services Total' : 'Decor Total'}:
+                {title.includes('Food')
+                  ? 'Food Total'
+                  : title.includes('Services')
+                  ? 'Services Total'
+                  : 'Decor Total'}
+                :
               </Text>
-              <TouchableOpacity
-                activeOpacity={1}
-                style={[
-                  styles.totalCellSmall,
-                  editingCell === getEditingCellKey() && {
-                    borderColor: COLORS.ACCENT,
-                    borderWidth: 2,
-                  },
-                ]}
-                onPress={() => setEditingCell(getEditingCellKey())}
-              >
-                {editingCell === getEditingCellKey() ? (
-                  <TextInput
-                    autoFocus
-                    value={manualTotal}
-                    onChangeText={onManualTotalChange}
-                    keyboardType="numeric"
-                    onBlur={() => setEditingCell(null)}
-                    style={styles.totalInputSmall}
-                    onSubmitEditing={() => setEditingCell(null)}
-                  />
-                ) : (
-                  <Text style={styles.totalValueSmall}>
-                    {getTotalValue()}
-                  </Text>
-                )}
-              </TouchableOpacity>
+              <View style={styles.totalCellSmall}>
+                <Text style={styles.totalValueSmall}>{getTotalValue()}</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -1268,9 +1094,9 @@ const Quotation = ({ navigation }) => {
       <AppHeader title="Quotation" />
       <ScrollView
         contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled={true}
-        keyboardDismissMode="on-drag"
+        // keyboardShouldPersistTaps="handled"
+        // nestedScrollEnabled={true}
+        // keyboardDismissMode="none"
         showsVerticalScrollIndicator={true}
       >
         {/* Client Information Section */}
@@ -1286,7 +1112,6 @@ const Quotation = ({ navigation }) => {
                 value={clientInfo.contactNo}
                 keyboardType="phone-pad"
                 onChangeText={t => updateClientInfo('contactNo', t)}
-                onFocus={() => setEditingCell(null)}
               />
               <TextInput
                 style={styles.input}
@@ -1294,17 +1119,13 @@ const Quotation = ({ navigation }) => {
                 placeholderTextColor="#b0b0b0"
                 value={clientInfo.name}
                 onChangeText={t => updateClientInfo('name', t)}
-                onFocus={() => setEditingCell(null)}
               />
             </View>
 
             <View style={styles.inputRow}>
               <TouchableOpacity
                 style={[styles.input, { justifyContent: 'center' }]}
-                onPress={() => {
-                  setEditingCell(null);
-                  openDatePicker('date');
-                }}
+                onPress={() => openDatePicker('date')}
               >
                 <Text
                   style={{
@@ -1324,7 +1145,6 @@ const Quotation = ({ navigation }) => {
                 value={clientInfo.noOfGuest}
                 keyboardType="numeric"
                 onChangeText={t => updateClientInfo('noOfGuest', t)}
-                onFocus={() => setEditingCell(null)}
               />
             </View>
 
@@ -1334,10 +1154,7 @@ const Quotation = ({ navigation }) => {
               >
                 <Picker
                   selectedValue={clientInfo.director}
-                  onValueChange={value => {
-                    setEditingCell(null);
-                    updateClientInfo('director', value);
-                  }}
+                  onValueChange={value => updateClientInfo('director', value)}
                   dropdownIconColor={COLORS.PRIMARY_DARK}
                   style={{
                     color: clientInfo.director ? COLORS.DARK : '#b0b0b0',
@@ -1365,7 +1182,6 @@ const Quotation = ({ navigation }) => {
                 placeholderTextColor="#b0b0b0"
                 value={clientInfo.venue}
                 onChangeText={t => updateClientInfo('venue', t)}
-                onFocus={() => setEditingCell(null)}
               />
             </View>
           </View>
@@ -1398,7 +1214,6 @@ const Quotation = ({ navigation }) => {
                   selected={selected}
                   isRateMode={isRate}
                   onPress={() => {
-                    setEditingCell(null);
                     if (isRate) setRateMode(opt);
                     else setServiceType(opt);
                   }}
@@ -1436,12 +1251,10 @@ const Quotation = ({ navigation }) => {
                     <TouchableOpacity
                       style={[
                         styles.checkboxOption,
-                        beverageType === 'regular'
-                          ? styles.checkboxOptionActive
-                          : null,
+                        beverageType === 'regular' &&
+                          styles.checkboxOptionActive,
                       ]}
                       onPress={() => {
-                        setEditingCell(null);
                         setBeverageType(prev =>
                           prev === 'regular' ? 'none' : 'regular',
                         );
@@ -1464,12 +1277,9 @@ const Quotation = ({ navigation }) => {
                     <TouchableOpacity
                       style={[
                         styles.checkboxOption,
-                        beverageType === 'can'
-                          ? styles.checkboxOptionActive
-                          : null,
+                        beverageType === 'can' && styles.checkboxOptionActive,
                       ]}
                       onPress={() => {
-                        setEditingCell(null);
                         setBeverageType(prev =>
                           prev === 'can' ? 'none' : 'can',
                         );
@@ -1489,7 +1299,7 @@ const Quotation = ({ navigation }) => {
                   <View style={styles.beverageTotalRow}>
                     <Text style={styles.totalLabelSmall}>Beverage Total:</Text>
                     <Text style={styles.totalValueSmall}>
-                      Rs. {Math.round(beverageTotal)}
+                      Rs. {formatCurrency(beverageTotal)}
                     </Text>
                   </View>
                 </View>
@@ -1531,10 +1341,7 @@ const Quotation = ({ navigation }) => {
                 <Text style={styles.totalLabel}>Special Instructions</Text>
                 <TouchableOpacity
                   activeOpacity={1}
-                  onPress={() => {
-                    setEditingCell(null);
-                    setPerHeadExpanded(v => !v);
-                  }}
+                  onPress={() => setPerHeadExpanded(v => !v)}
                 >
                   <TextInput
                     style={[
@@ -1547,20 +1354,46 @@ const Quotation = ({ navigation }) => {
                     numberOfLines={perHeadExpanded ? 4 : 1}
                     value={perHeadInfo}
                     onChangeText={setPerHeadInfo}
-                    onFocus={() => {
-                      setEditingCell(null);
-                      setPerHeadExpanded(true);
-                    }}
+                    onFocus={() => setPerHeadExpanded(true)}
                     onBlur={() => setPerHeadExpanded(false)}
                   />
                 </TouchableOpacity>
               </View>
             )}
 
+            {/* ✅ NEW: Sub Total Row */}
+            <View style={styles.subTotalRow}>
+              <Text style={styles.subTotalLabel}>Sub Total</Text>
+              <Text style={styles.subTotalValue}>
+                Rs. {formatCurrency(subTotal)}
+              </Text>
+            </View>
+
+            {/* ✅ FIXED: Discount Section - Only Fixed */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Owner Discount</Text>
+              <View style={styles.discountRow}>
+                <View style={styles.discountInputRow}>
+                  <TextInput
+                    value={discountAmount}
+                    onChangeText={setDiscountAmount}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="#666"
+                    style={styles.discountInput}
+                  />
+                  <Text style={styles.discountValueText}>
+                    = Rs. {formatCurrency(discountValue)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* ✅ UPDATED: Grand Total Row */}
             <View style={styles.grandTotalRow}>
               <Text style={styles.grandLabel}>Grand Total</Text>
               <Text style={styles.grandValue}>
-                Rs. {Math.round(grandTotal)}
+                Rs. {formatCurrency(grandTotal)}
               </Text>
             </View>
 
@@ -1571,12 +1404,9 @@ const Quotation = ({ navigation }) => {
                 <TouchableOpacity
                   style={[
                     styles.advanceOption,
-                    advanceMode === 'cash' ? styles.advanceOptionActive : null,
+                    advanceMode === 'cash' && styles.advanceOptionActive,
                   ]}
-                  onPress={() => {
-                    setEditingCell(null);
-                    setAdvanceMode('cash');
-                  }}
+                  onPress={() => setAdvanceMode('cash')}
                 >
                   <Text
                     style={
@@ -1592,12 +1422,9 @@ const Quotation = ({ navigation }) => {
                 <TouchableOpacity
                   style={[
                     styles.advanceOption,
-                    advanceMode === 'bank' ? styles.advanceOptionActive : null,
+                    advanceMode === 'bank' && styles.advanceOptionActive,
                   ]}
-                  onPress={() => {
-                    setEditingCell(null);
-                    setAdvanceMode('bank');
-                  }}
+                  onPress={() => setAdvanceMode('bank')}
                 >
                   <Text
                     style={
@@ -1621,7 +1448,6 @@ const Quotation = ({ navigation }) => {
                     placeholder="0"
                     placeholderTextColor="#666"
                     style={styles.advanceInput}
-                    onFocus={() => setEditingCell(null)}
                   />
                 </View>
               )}
@@ -1642,10 +1468,7 @@ const Quotation = ({ navigation }) => {
                   >
                     <Picker
                       selectedValue={bankSelected}
-                      onValueChange={value => {
-                        setEditingCell(null);
-                        setBankSelected(value);
-                      }}
+                      onValueChange={setBankSelected}
                       dropdownIconColor={COLORS.PRIMARY_DARK}
                       style={{
                         color: bankSelected ? COLORS.DARK : '#b0b0b0',
@@ -1676,7 +1499,6 @@ const Quotation = ({ navigation }) => {
                       placeholder="0"
                       placeholderTextColor="#666"
                       style={styles.advanceInput}
-                      onFocus={() => setEditingCell(null)}
                     />
                   </View>
                 </>
@@ -1685,7 +1507,7 @@ const Quotation = ({ navigation }) => {
               <View style={[styles.advanceInputRow, { marginTop: 10 }]}>
                 <Text style={styles.totalLabelSmall}>Remaining Balance:</Text>
                 <Text style={styles.totalValueSmall}>
-                  Rs. {Math.round(remainingBalance)}
+                  Rs. {formatCurrency(remainingBalance)}
                 </Text>
               </View>
             </View>
