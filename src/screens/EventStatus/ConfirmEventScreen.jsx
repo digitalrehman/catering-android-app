@@ -14,6 +14,8 @@ import EventCard from '../../components/EventCard';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import { handleDirectShare } from '../../utils/pdfShare';
+import COLORS from '../../utils/colors';
+import api from '../../utils/api';
 
 const ConfirmEventScreen = () => {
   const [events, setEvents] = useState([]);
@@ -30,7 +32,7 @@ const ConfirmEventScreen = () => {
       formData.append('order_no', orderNo);
 
       const response = await fetch(
-        'https://cat.de2solutions.com/mobile_dash/get_event_food_decor_detail.php',
+        `${api.baseURL}get_event_food_decor_detail.php`,
         {
           method: 'POST',
           body: formData,
@@ -58,7 +60,7 @@ const ConfirmEventScreen = () => {
   const fetchConfirmEvents = async () => {
     try {
       const response = await fetch(
-        'https://cat.de2solutions.com/mobile_dash/get_event_quotation_confirm.php',
+        `${api.baseURL}get_event_quotation_confirm.php`,
       );
       const data = await response.json();
 
@@ -94,7 +96,7 @@ const ConfirmEventScreen = () => {
   };
 
   return (
-    <LinearGradient colors={['#B83232', '#4A0000']} style={{ flex: 1 }}>
+    <LinearGradient colors={COLORS.GRADIENT_PRIMARY} style={{ flex: 1 }}>
       <StatusBar
         translucent
         backgroundColor="transparent"
@@ -104,7 +106,7 @@ const ConfirmEventScreen = () => {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#FFD700" />
+          <ActivityIndicator size="large" color={COLORS.ACCENT} />
           <Text style={styles.text}>Loading Confirmed Events...</Text>
         </View>
       ) : events.length > 0 ? (
@@ -122,7 +124,7 @@ const ConfirmEventScreen = () => {
         />
       ) : (
         <View style={styles.center}>
-          <Icon name="calendar-remove" size={60} color="#FFD700" />
+          <Icon name="calendar-remove" size={60} color={COLORS.ACCENT} />
           <Text style={styles.text}>No Confirmed Events Found</Text>
         </View>
       )}
@@ -139,7 +141,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     marginTop: 10,
     fontSize: 16,
     fontWeight: '600',

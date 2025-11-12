@@ -15,6 +15,7 @@ import { useDispatch } from 'react-redux';
 import { setLogout } from '../store/authSlice';
 import DashboardTile from '../components/DashboardTile';
 import AnnouncementSection from '../components/AnnouncementSection';
+import COLORS from '../utils/colors';
 
 const Dashboard = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -45,7 +46,7 @@ const Dashboard = ({ navigation }) => {
   }, []);
 
   return (
-    <LinearGradient colors={['#B83232', '#4A0000']} style={styles.container}>
+    <LinearGradient colors={COLORS.GRADIENT_PRIMARY} style={styles.container}>
       <StatusBar
         translucent
         backgroundColor="transparent"
@@ -62,21 +63,21 @@ const Dashboard = ({ navigation }) => {
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text style={styles.greeting}>United Catering</Text>
+              <Text style={styles.greeting}>CND</Text>
               <Text style={styles.subtext}>Delivering Taste & Quality</Text>
             </View>
             <View style={styles.headerRightIcons}>
               <TouchableOpacity style={styles.iconCircle}>
-                <Icon name="bell-outline" size={22} color="#FFD700" />
+                <Icon name="bell-outline" size={22} color={COLORS.ACCENT} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
                   styles.iconCircle,
-                  { backgroundColor: 'rgba(255,215,0,0.1)' },
+                  { backgroundColor: `rgba(${hexToRgb(COLORS.ACCENT)},0.1)` },
                 ]}
                 onPress={() => dispatch(setLogout())}
               >
-                <Icon2 name="logout" size={22} color="#FFD700" />
+                <Icon2 name="logout" size={22} color={COLORS.ACCENT} />
               </TouchableOpacity>
             </View>
           </View>
@@ -93,10 +94,10 @@ const Dashboard = ({ navigation }) => {
             <View style={styles.buttonRow}>
               <TouchableOpacity
                 onPress={() => navigation.navigate('ConfirmEventScreen')}
-                style={[styles.actionBtn, { backgroundColor: '#FFD700' }]}
+                style={[styles.actionBtn, { backgroundColor: COLORS.ACCENT }]}
               >
-                <Icon name="check-circle" size={20} color="#990303" />
-                <Text style={[styles.btnText, { color: '#990303' }]}>
+                <Icon name="check-circle" size={20} color={COLORS.PRIMARY_DARK} />
+                <Text style={[styles.btnText, { color: COLORS.PRIMARY_DARK }]}>
                   Confirm
                 </Text>
               </TouchableOpacity>
@@ -107,8 +108,8 @@ const Dashboard = ({ navigation }) => {
                   { backgroundColor: 'rgba(255,255,255,0.1)' },
                 ]}
               >
-                <Icon name="clock-outline" size={20} color="#FFD700" />
-                <Text style={[styles.btnText, { color: '#FFD700' }]}>
+                <Icon name="clock-outline" size={20} color={COLORS.ACCENT} />
+                <Text style={[styles.btnText, { color: COLORS.ACCENT }]}>
                   Tentative
                 </Text>
               </TouchableOpacity>
@@ -119,14 +120,14 @@ const Dashboard = ({ navigation }) => {
                 style={styles.iconBtn}
                 onPress={() => navigation.navigate('Quotation')}
               >
-                <Icon name="plus-circle" size={26} color="#FFD700" />
+                <Icon name="plus-circle" size={26} color={COLORS.ACCENT} />
                 <Text style={styles.newIconLabel}>New Booking</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.iconBtn}
                 onPress={() => navigation.navigate('EventCalendar')}
               >
-                <Icon name="calendar-month-outline" size={26} color="#FFD700" />
+                <Icon name="calendar-month-outline" size={26} color={COLORS.ACCENT} />
                 <Text style={styles.newIconLabel}>Calendar View</Text>
               </TouchableOpacity>
             </View>
@@ -171,6 +172,15 @@ const Dashboard = ({ navigation }) => {
   );
 };
 
+// ✅ Helper function to convert hex to rgba
+const hexToRgb = (hex) => {
+  hex = hex.replace(/^#/, '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  return `${r}, ${g}, ${b}`;
+};
+
 export default Dashboard;
 
 const styles = StyleSheet.create({
@@ -183,9 +193,20 @@ const styles = StyleSheet.create({
     paddingTop: StatusBar.currentHeight - 15 || 20,
     marginBottom: 20,
   },
-  greeting: { color: '#FFD700', fontSize: 20, fontWeight: '700' },
-  subtext: { color: '#fff', fontSize: 12, marginTop: 3 },
-  headerRightIcons: { flexDirection: 'row', gap: 12 },
+  greeting: { 
+    color: COLORS.ACCENT, 
+    fontSize: 20, 
+    fontWeight: '700' 
+  },
+  subtext: { 
+    color: COLORS.WHITE, 
+    fontSize: 12, 
+    marginTop: 3 
+  },
+  headerRightIcons: { 
+    flexDirection: 'row', 
+    gap: 12 
+  },
   iconCircle: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     padding: 8,
@@ -198,7 +219,11 @@ const styles = StyleSheet.create({
     marginBottom: 25,
     marginHorizontal: 20,
   },
-  cardTitle: { color: '#FFD700', fontSize: 18, fontWeight: '700' },
+  cardTitle: { 
+    color: COLORS.ACCENT, 
+    fontSize: 18, 
+    fontWeight: '700' 
+  },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -214,7 +239,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 6,
   },
-  btnText: { fontSize: 14, fontWeight: '600' },
+  btnText: { 
+    fontSize: 14, 
+    fontWeight: '600' 
+  },
   newActionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -224,12 +252,14 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   newIconLabel: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 12,
     fontWeight: '600',
     marginTop: 5,
   },
-  iconBtn: { alignItems: 'center' },
+  iconBtn: { 
+    alignItems: 'center' 
+  },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

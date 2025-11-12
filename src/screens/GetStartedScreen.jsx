@@ -52,7 +52,7 @@ const GetStartedScreen = () => {
             
             {/* Heading Section */}
             <View style={styles.topContainer}>
-              <Text style={styles.title}>Unites Catering Services</Text>
+              <Text style={styles.title}>CND Services</Text>
               <Text style={styles.subtitle}>
                 Serving Excellence with Every Meal
               </Text>

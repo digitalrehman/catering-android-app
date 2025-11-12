@@ -1,8 +1,9 @@
 const COLORS = {
-  PRIMARY: '#C62828',
-  PRIMARY_DARK: '#8E0000',
-  ACCENT: '#FFCA28',
-  ACCENT_DARK: '#b38901ff',
+  // Primary Colors - Blue Theme
+  PRIMARY: '#1976D2',
+  PRIMARY_DARK: '#0D47A1',
+  ACCENT: '#FFD600', // Bright Yellow
+  ACCENT_DARK: '#FFC400',
 
   // Neutral Colors
   WHITE: '#FFFFFF',
@@ -10,17 +11,29 @@ const COLORS = {
   GRAY_LIGHT: '#F5F5F5',
 
   // ✅ Status Colors
-  WARNING: '#F9A825',
-  ERROR: '#D32F2F',
+  WARNING: '#FFA000', // Amber
+  ERROR: '#D32F2F', // Red
+  SUCCESS: '#388E3C', // Green
+  INFO: '#1976D2', // Blue
 
   // 🌈 Theme Gradients (optional)
-  GRADIENT_PRIMARY: ['#C62828', '#8E0000'],
-  GRADIENT_ACCENT: ['#FFCA28', '#FFD54F'],
+  GRADIENT_PRIMARY: ['#1976D2', '#0D47A1'],
+  GRADIENT_ACCENT: ['#FFD600', '#FFC400'],
 
-  BACKGROUND: "#F2F4F5",
-  TEXT: "#333",
-  DARK: "#222",
-  GRAY: "#aaa",
+  // Additional Blue Shades
+  BLUE_LIGHT: '#42A5F5',
+  BLUE_MEDIUM: '#2196F3',
+  BLUE_DARK: '#1565C0',
+
+  // Additional Yellow Shades
+  YELLOW_LIGHT: '#FFEB3B',
+  YELLOW_MEDIUM: '#FFD600',
+  YELLOW_DARK: '#FFC400',
+
+  BACKGROUND: '#FFFFFF',
+  TEXT: '#333333',
+  DARK: '#222222',
+  GRAY: '#757575',
 };
 
 export default COLORS;

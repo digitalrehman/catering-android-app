@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
+import COLORS from '../utils/colors';
 
 const EventCard = ({ item, onShare, onEdit }) => {
   const navigation = useNavigation();
@@ -13,21 +14,21 @@ const EventCard = ({ item, onShare, onEdit }) => {
       activeOpacity={0.85}
       onPress={() => navigation.navigate('EventDetail', { event: item })}
     >
-      <LinearGradient colors={['#B83232', '#990303']} style={styles.cardInner}>
+      <LinearGradient colors={COLORS.GRADIENT_PRIMARY} style={styles.cardInner}>
         <View style={styles.cardRow}>
           <Image source={item.image} style={styles.avatar} />
           <View style={styles.cardContent}>
             <Text style={styles.name}>{item.name}</Text>
             <View style={styles.row}>
-              <Icon name="phone" size={12} color="#FFD700" />
+              <Icon name="phone" size={12} color={COLORS.ACCENT} />
               <Text style={styles.infoText}>{item.contact_no}</Text>
             </View>
             <View style={styles.row}>
-              <Icon name="account-group" size={12} color="#FFD700" />
+              <Icon name="account-group" size={12} color={COLORS.ACCENT} />
               <Text style={styles.infoText}>{item.guest} Guests</Text>
             </View>
             <View style={styles.row}>
-              <Icon name="map-marker" size={12} color="#FFD700" />
+              <Icon name="map-marker" size={12} color={COLORS.ACCENT} />
               <Text style={styles.infoText} numberOfLines={1}>
                 {item.venue}
               </Text>
@@ -39,14 +40,14 @@ const EventCard = ({ item, onShare, onEdit }) => {
               style={styles.actionButton}
               onPress={() => onShare(item)}
             >
-              <Icon name="share-variant" size={18} color="#FFD700" />
+              <Icon name="share-variant" size={18} color={COLORS.ACCENT} />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => onEdit(item)}
             >
-              <Icon name="pencil" size={18} color="#FFD700" />
+              <Icon name="pencil" size={18} color={COLORS.ACCENT} />
             </TouchableOpacity>
           </View>
         </View>
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   name: {
-    color: '#fff',
+    color: COLORS.WHITE,
     fontSize: 13,
     fontWeight: '700',
     marginBottom: 2,
@@ -100,7 +101,7 @@ const styles = StyleSheet.create({
     marginBottom: 1,
   },
   infoText: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 12,
     marginLeft: 4,
     flex: 1,
@@ -114,7 +115,7 @@ const styles = StyleSheet.create({
   actionButton: {
     padding: 5,
     borderRadius: 6,
-    backgroundColor: 'rgba(255,215,0,0.1)',
+    backgroundColor: 'rgba(255,214,0,0.1)',
     marginBottom: 4,
   },
 });

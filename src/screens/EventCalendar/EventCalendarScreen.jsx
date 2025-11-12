@@ -16,6 +16,7 @@ import AppHeader from '../../components/AppHeader';
 import EventCard from '../../components/EventCard';
 import { handleDirectShare } from '../../utils/pdfShare';
 import api from '../../utils/api';
+import COLORS from '../../utils/colors';
 
 const EventCalendarScreen = () => {
   const navigation = useNavigation();
@@ -90,7 +91,7 @@ const EventCalendarScreen = () => {
     const marked = {};
     const todayDate = new Date();
 
-    marked[today] = { selected: true, selectedColor: '#FFD700' };
+    marked[today] = { selected: true, selectedColor: COLORS.ACCENT };
     setSelectedDate(today);
 
     eventsList.forEach(event => {
@@ -102,12 +103,12 @@ const EventCalendarScreen = () => {
           marked[eventDate] = {
             ...marked[eventDate],
             marked: true,
-            dotColor: '#FFD700',
+            dotColor: COLORS.ACCENT,
           };
         } else {
           marked[eventDate] = {
             marked: true,
-            dotColor: '#FFD700',
+            dotColor: COLORS.ACCENT,
           };
         }
       }
@@ -141,7 +142,7 @@ const EventCalendarScreen = () => {
       newMarked[date] = {
         ...(newMarked[date] || {}),
         selected: true,
-        selectedColor: '#FFD700',
+        selectedColor: COLORS.ACCENT,
       };
       setMarkedDates(newMarked);
     },
@@ -320,7 +321,7 @@ const EventCalendarScreen = () => {
   };
 
   return (
-    <LinearGradient colors={['#B83232', '#4A0000']} style={styles.container}>
+    <LinearGradient colors={COLORS.GRADIENT_PRIMARY} style={styles.container}>
       <StatusBar
         translucent
         backgroundColor="transparent"
@@ -332,7 +333,7 @@ const EventCalendarScreen = () => {
         style={[
           StyleSheet.absoluteFill,
           {
-            backgroundColor: '#ffffff',
+            backgroundColor: COLORS.WHITE,
             opacity: overlayAnim.interpolate({
               inputRange: [0, 1],
               outputRange: [0.35, 0],
@@ -352,14 +353,14 @@ const EventCalendarScreen = () => {
           <Calendar
             theme={{
               calendarBackground: 'transparent',
-              dayTextColor: '#fff',
-              monthTextColor: '#FFD700',
-              todayTextColor: '#FFD700',
-              arrowColor: '#FFD700',
+              dayTextColor: COLORS.WHITE,
+              monthTextColor: COLORS.ACCENT,
+              todayTextColor: COLORS.ACCENT,
+              arrowColor: COLORS.ACCENT,
               textDisabledColor: 'rgba(255,255,255,0.35)',
-              selectedDayBackgroundColor: '#FFD700',
-              selectedDayTextColor: '#000',
-              dotColor: '#FFD700',
+              selectedDayBackgroundColor: COLORS.ACCENT,
+              selectedDayTextColor: COLORS.BLACK,
+              dotColor: COLORS.ACCENT,
             }}
             markedDates={markedDates}
             onDayPress={onDayPress}
@@ -371,7 +372,7 @@ const EventCalendarScreen = () => {
 
         {loading ? (
           <View style={styles.centerMessageContainer}>
-            <Icon name="calendar-sync" size={60} color="#FFD700" />
+            <Icon name="calendar-sync" size={60} color={COLORS.ACCENT} />
             <Text style={styles.centerTitle}>Loading Events</Text>
             <Text style={styles.centerMessage}>
               Please wait while we fetch your events...
@@ -388,7 +389,7 @@ const EventCalendarScreen = () => {
                   style={styles.clearFilterButton}
                   onPress={clearDateFilter}
                 >
-                  <Icon name="filter-remove" size={16} color="#FFD700" />
+                  <Icon name="filter-remove" size={16} color={COLORS.ACCENT} />
                   <Text style={styles.clearFilterText}>Clear Filter</Text>
                 </TouchableOpacity>
               )}
@@ -406,13 +407,13 @@ const EventCalendarScreen = () => {
           </View>
         ) : (
           <View style={styles.centerMessageContainer}>
-            <Icon name={getEmptyMessage().icon} size={60} color="#FFD700" />
+            <Icon name={getEmptyMessage().icon} size={60} color={COLORS.ACCENT} />
             <Text style={styles.centerTitle}>{getEmptyMessage().title}</Text>
             <Text style={styles.centerMessage}>
               {getEmptyMessage().message}
             </Text>
             <View style={styles.tipContainer}>
-              <Icon name="lightbulb-on" size={18} color="#FFD700" />
+              <Icon name="lightbulb-on" size={18} color={COLORS.ACCENT} />
               <Text style={styles.tipText}>
                 Tip: Select a different date to find events
               </Text>
@@ -446,7 +447,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionTitle: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 18,
     fontWeight: '700',
     flex: 1,
@@ -454,15 +455,15 @@ const styles = StyleSheet.create({
   clearFilterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,215,0,0.1)',
+    backgroundColor: 'rgba(255,214,0,0.1)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.3)',
+    borderColor: 'rgba(255,214,0,0.3)',
   },
   clearFilterText: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
@@ -505,7 +506,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   name: {
-    color: '#fff',
+    color: COLORS.WHITE,
     fontSize: 13,
     fontWeight: '700',
     marginBottom: 2,
@@ -516,7 +517,7 @@ const styles = StyleSheet.create({
     marginBottom: 1,
   },
   infoText: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 12,
     marginLeft: 4,
     flex: 1,
@@ -530,7 +531,7 @@ const styles = StyleSheet.create({
   actionButton: {
     padding: 5,
     borderRadius: 6,
-    backgroundColor: 'rgba(255,215,0,0.1)',
+    backgroundColor: 'rgba(255,214,0,0.1)',
     marginBottom: 4,
   },
   chevWrap: {
@@ -538,7 +539,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   centerTitle: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 20,
     fontWeight: '700',
     marginTop: 16,
@@ -555,15 +556,15 @@ const styles = StyleSheet.create({
   tipContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,215,0,0.1)',
+    backgroundColor: 'rgba(255,214,0,0.1)',
     padding: 10,
     borderRadius: 8,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.3)',
+    borderColor: 'rgba(255,214,0,0.3)',
   },
   tipText: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 13,
     marginLeft: 6,
     fontWeight: '600',

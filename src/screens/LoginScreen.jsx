@@ -17,6 +17,7 @@ import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import api from '../utils/api';
 import { CurrentLogin, setLoader } from '../store/authSlice';
+import COLORS from '../utils/colors'; 
 
 const LoginScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
@@ -84,13 +85,13 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <ImageBackground
-      source={require('../assets/images/main.jpg')} // 🔥 Background image
+      source={require('../assets/images/main.jpg')}
       style={styles.bgImage}
       resizeMode="cover"
     >
-      {/* Red dark overlay */}
+      {/* Overlay using theme gradient */}
       <LinearGradient
-        colors={['rgba(150,0,0,0.6)', 'rgba(0,0,0,0.85)']}
+        colors={[COLORS.GRADIENT_PRIMARY[0] + 'AA', COLORS.DARK + 'DD']}
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -98,7 +99,6 @@ const LoginScreen = ({ navigation }) => {
         style={{ marginTop: 60 }}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 50 }}
       >
-        {/* Logo Animation */}
         <Animated.View
           style={{
             opacity: fadeAnim,
@@ -118,15 +118,13 @@ const LoginScreen = ({ navigation }) => {
           />
         </Animated.View>
 
-        {/* Title */}
         <View style={{ alignItems: 'center', marginBottom: 25 }}>
-          <Text style={styles.titleText}>Welcome to UCS</Text>
+          <Text style={styles.titleText}>Welcome to CND</Text>
           <Text style={styles.subtitleText}>
             Delivering Taste & Quality Every Time
           </Text>
         </View>
 
-        {/* Login Card */}
         <Animated.View
           style={[
             styles.card,
@@ -145,11 +143,11 @@ const LoginScreen = ({ navigation }) => {
         >
           {/* Username Input */}
           <View style={styles.inputContainer}>
-            <Icon name="email-outline" size={22} color="#990303" />
+            <Icon name="email-outline" size={22} color={COLORS.PRIMARY_DARK} />
             <View style={styles.separator} />
             <TextInput
               placeholder="Email or Username"
-              placeholderTextColor="#999"
+              placeholderTextColor={COLORS.GRAY}
               style={styles.input}
               onChangeText={setUsername}
               value={username}
@@ -158,11 +156,11 @@ const LoginScreen = ({ navigation }) => {
 
           {/* Password Input */}
           <View style={styles.inputContainer}>
-            <Icon name="lock-outline" size={22} color="#990303" />
+            <Icon name="lock-outline" size={22} color={COLORS.PRIMARY_DARK} />
             <View style={styles.separator} />
             <TextInput
               placeholder="Password"
-              placeholderTextColor="#999"
+              placeholderTextColor={COLORS.GRAY}
               secureTextEntry={!showPassword}
               style={styles.input}
               onChangeText={setPassword}
@@ -172,7 +170,7 @@ const LoginScreen = ({ navigation }) => {
               <Icon
                 name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                 size={22}
-                color="#990303"
+                color={COLORS.PRIMARY_DARK}
               />
             </TouchableOpacity>
           </View>
@@ -184,10 +182,10 @@ const LoginScreen = ({ navigation }) => {
             disabled={Loading}
           >
             {Loading ? (
-              <ActivityIndicator color="#800000" />
+              <ActivityIndicator color={COLORS.ACCENT_DARK} />
             ) : (
               <LinearGradient
-                colors={['#b30000', '#800000']}
+                colors={COLORS.GRADIENT_PRIMARY}
                 style={styles.gradientBtn}
               >
                 <Text style={styles.text}>Login</Text>
@@ -217,28 +215,28 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     resizeMode: 'contain',
     marginBottom: 20,
-    tintColor: '#FFD700',
+    tintColor: COLORS.ACCENT, // ✅ from theme
   },
   titleText: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     textAlign: 'center',
   },
   subtitleText: {
     fontSize: 15,
-    color: '#f5f5f5',
+    color: COLORS.WHITE,
     marginTop: 5,
     textAlign: 'center',
   },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: COLORS.WHITE,
     width: '90%',
     alignSelf: 'center',
     padding: 25,
     borderRadius: 18,
     elevation: 8,
-    shadowColor: '#800000',
+    shadowColor: COLORS.PRIMARY_DARK,
     shadowOpacity: 0.25,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 10,
@@ -246,9 +244,9 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.WHITE,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: COLORS.GRAY_LIGHT,
     borderRadius: 12,
     paddingHorizontal: 12,
     marginBottom: 15,
@@ -256,12 +254,12 @@ const styles = StyleSheet.create({
   separator: {
     width: 1,
     height: 25,
-    backgroundColor: '#ccc',
+    backgroundColor: COLORS.GRAY_LIGHT,
     marginHorizontal: 8,
   },
   input: {
     flex: 1,
-    color: '#000',
+    color: COLORS.TEXT,
     fontSize: 16,
     paddingVertical: 10,
   },
@@ -277,7 +275,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   text: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -285,7 +283,7 @@ const styles = StyleSheet.create({
   footerText: {
     textAlign: 'center',
     marginTop: 25,
-    color: 'gray',
+    color: COLORS.GRAY,
     fontSize: 13,
   },
 });

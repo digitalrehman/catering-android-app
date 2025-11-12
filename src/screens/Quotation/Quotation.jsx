@@ -25,6 +25,7 @@ import AppHeader from '../../components/AppHeader';
 import { useSelector } from 'react-redux';
 import styles from './quotationStyle';
 import { useRoute } from '@react-navigation/native';
+import api from '../../utils/api';
 
 const DEFAULT_ROWS = 5;
 
@@ -362,9 +363,7 @@ const Quotation = ({ navigation }) => {
     const fetchData = async () => {
       try {
         // Fetch directors
-        const directorRes = await fetch(
-          'https://cat.de2solutions.com/mobile_dash/director.php',
-        );
+        const directorRes = await fetch(`${api.baseURL}director.php`);
         const directorJson = await directorRes.json();
         if (
           mounted &&
@@ -375,9 +374,7 @@ const Quotation = ({ navigation }) => {
         }
 
         // Fetch banks
-        const bankRes = await fetch(
-          'https://cat.de2solutions.com/mobile_dash/event_bank.php',
-        );
+        const bankRes = await fetch(`${api.baseURL}event_bank.php`);
         const bankJson = await bankRes.json();
         if (mounted && bankJson?.status === 'true')
           setBanks(bankJson.data || []);
@@ -441,10 +438,10 @@ const Quotation = ({ navigation }) => {
       const formData = new FormData();
       formData.append('order_no', eventData.id);
 
-      const res = await fetch(
-        'https://cat.de2solutions.com/mobile_dash/get_event_food_decor_detail.php',
-        { method: 'POST', body: formData },
-      );
+      const res = await fetch(`${api.baseURL}get_event_food_decor_detail.php`, {
+        method: 'POST',
+        body: formData,
+      });
 
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
@@ -621,7 +618,7 @@ const Quotation = ({ navigation }) => {
       setFoodOwnerAmount(foodPerHeadValue);
       setDecOwnerAmount(decPerHeadValue);
       setServicesOwnerAmount(servicesPerHeadValue);
-      
+
       // ✅ IMPORTANT: Manual total ko empty rakho taki automatic calculation work kare
       setManualFoodTotal('');
       setManualDecTotal('');
@@ -645,7 +642,6 @@ const Quotation = ({ navigation }) => {
       } else {
         setAdvanceMode('none');
       }
-
     } catch (err) {
       console.log('Error fetching event details:', err);
     }
@@ -703,17 +699,17 @@ const Quotation = ({ navigation }) => {
     if (eventData?.id) {
       // Edit mode mein hain, calculation trigger karo
       const timer = setTimeout(() => {
-        console.log("Auto calculating in edit mode...");
+        console.log('Auto calculating in edit mode...');
       }, 500);
-      
+
       return () => clearTimeout(timer);
     }
   }, [
-    foodRows, 
-    decRows, 
-    servicesRows, 
-    discountAmount, 
-    cashReceived, 
+    foodRows,
+    decRows,
+    servicesRows,
+    discountAmount,
+    cashReceived,
     bankAmount,
     advanceMode,
     clientInfo.noOfGuest,
@@ -721,7 +717,7 @@ const Quotation = ({ navigation }) => {
     decOwnerAmount,
     servicesOwnerAmount,
     beverageType,
-    serviceType
+    serviceType,
   ]);
 
   const updateClientInfo = useCallback((key, value) => {
@@ -1036,10 +1032,10 @@ const Quotation = ({ navigation }) => {
         );
       }
 
-      const response = await fetch(
-        'https://cat.de2solutions.com/mobile_dash/post_event_quotation.php',
-        { method: 'POST', body: formData },
-      );
+      const response = await fetch(`${api.baseURL}post_event_quotation.php`, {
+        method: 'POST',
+        body: formData,
+      });
 
       const text = await response.text();
 

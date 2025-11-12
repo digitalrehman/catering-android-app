@@ -11,6 +11,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
+import COLORS from '../utils/colors';
 
 const AppHeader = ({ title = '', showBack = true }) => {
   const navigation = useNavigation();
@@ -33,7 +34,7 @@ const AppHeader = ({ title = '', showBack = true }) => {
   }, []);
 
   return (
-    <LinearGradient colors={['#B83232', '#4A0000']} style={styles.gradient}>
+    <LinearGradient colors={COLORS.GRADIENT_PRIMARY} style={styles.gradient}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
       <Animated.View
         style={[
@@ -46,7 +47,7 @@ const AppHeader = ({ title = '', showBack = true }) => {
             onPress={() => navigation.goBack()}
             style={styles.iconButton}
           >
-            <Icon name="arrow-left" size={22} color="#FFD700" />
+            <Icon name="arrow-left" size={22} color={COLORS.ACCENT} />
           </TouchableOpacity>
         ) : (
           <View style={{ width: 40 }} />
@@ -59,7 +60,7 @@ const AppHeader = ({ title = '', showBack = true }) => {
           onPress={() => navigation.navigate('Dashboard')}
           style={styles.iconButton}
         >
-          <Icon name="view-dashboard" size={22} color="#FFD700" />
+          <Icon name="view-dashboard" size={22} color={COLORS.ACCENT} />
         </TouchableOpacity>
       </Animated.View>
     </LinearGradient>
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     elevation: 10,
-    shadowColor: '#FFD700',
+    shadowColor: COLORS.ACCENT,
     shadowOpacity: 0.4,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   titleText: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',

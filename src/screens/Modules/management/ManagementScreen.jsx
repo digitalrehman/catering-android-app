@@ -12,6 +12,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import AppHeader from '../../../components/AppHeader';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
+import COLORS from '../../../utils/colors';
 
 const { width } = Dimensions.get('window');
 
@@ -93,7 +94,7 @@ const ManagementScreen = () => {
         ]}
       >
         <LinearGradient
-          colors={['#B83232', '#4A0000']}
+          colors={COLORS.GRADIENT_PRIMARY}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.revenueCardGradient}
@@ -114,7 +115,7 @@ const ManagementScreen = () => {
           </Text>
           <View style={styles.viewMoreContainer}>
             <Text style={styles.viewMoreText}>View Details</Text>
-            <Icon name="chevron-right" size={16} color="#FFD700" />
+            <Icon name="chevron-right" size={16} color={COLORS.ACCENT} />
           </View>
         </LinearGradient>
       </TouchableOpacity>
@@ -123,17 +124,17 @@ const ManagementScreen = () => {
 
   if (loader) {
     return (
-      <LinearGradient colors={['#4A0000', '#1A0000']} style={styles.container}>
+      <LinearGradient colors={[COLORS.PRIMARY_DARK, '#1A0000']} style={styles.container}>
         <AppHeader title="Management" />
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#FFD700" />
+          <ActivityIndicator size="large" color={COLORS.ACCENT} />
         </View>
       </LinearGradient>
     );
   }
 
   return (
-    <LinearGradient colors={['#4A0000', '#1A0000']} style={styles.container}>
+    <LinearGradient colors={[COLORS.PRIMARY_DARK, '#1A0000']} style={styles.container}>
       <AppHeader title="Management" />
 
       <FlatList
@@ -202,7 +203,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 10,
-    color: '#FFD700',
+    color: COLORS.ACCENT,
   },
   row: {
     flexDirection: 'row',
@@ -218,10 +219,10 @@ const styles = StyleSheet.create({
   rowAmount: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFD700',
+    color: COLORS.ACCENT,
   },
   sectionHeader: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 18,
     fontWeight: '700',
     marginLeft: 15,
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 15,
     borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.2)',
+    borderColor: 'rgba(255,214,0,0.2)',
     minHeight: 140,
   },
   revHeader: {
@@ -246,13 +247,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   revTitle: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 14,
     fontWeight: '700',
     flex: 1,
   },
   revAmount: {
-    color: '#fff',
+    color: COLORS.WHITE,
     fontSize: 16,
     fontWeight: '700',
     marginTop: 8,
@@ -272,7 +273,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255,255,255,0.1)',
   },
   viewMoreText: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 12,
     fontWeight: '600',
   },

@@ -2,13 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import api from '../utils/api';
+import COLORS from '../utils/colors';
 
 const AnnouncementSection = () => {
   const [announcement, setAnnouncement] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('https://cat.de2solutions.com/mobile_dash/event_annoucment.php')
+    fetch(`${api.baseURL}event_annoucment.php`)
       .then(res => res.json())
       .then(data => {
         setAnnouncement(data.annoucment_data);
@@ -54,13 +56,13 @@ const AnnouncementSection = () => {
 
   const renderAnnouncementCard = ({ item }) => (
     <LinearGradient
-      colors={['#B83232', '#4A0000']}
+      colors={COLORS.GRADIENT_PRIMARY}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.announcementCard}
     >
       <View style={styles.titleRow}>
-        <Icon name="bullhorn-outline" size={22} color="#FFD700" style={{ marginRight: 6 }} />
+        <Icon name="bullhorn-outline" size={22} color={COLORS.ACCENT} style={{ marginRight: 6 }} />
         <Text style={styles.announceTitle}>{item.title}</Text>
       </View>
 
@@ -85,7 +87,7 @@ const AnnouncementSection = () => {
   if (loading) {
     return (
       <View style={{ padding: 20, alignItems: 'center' }}>
-        <ActivityIndicator size="small" color="#FFD700" />
+        <ActivityIndicator size="small" color={COLORS.ACCENT} />
       </View>
     );
   }
@@ -93,7 +95,7 @@ const AnnouncementSection = () => {
   return (
     <View>
       <View style={styles.announceHeaderRow}>
-        <Icon name="bullhorn-outline" size={22} color="#FFD700" />
+        <Icon name="bullhorn-outline" size={22} color={COLORS.ACCENT} />
         <Text style={[styles.sectionTitle, { marginLeft: 8 }]}>Announcements</Text>
       </View>
 
@@ -122,33 +124,59 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginTop: 15,
   },
-  sectionTitle: { color: '#FFD700', fontSize: 18, fontWeight: '700' },
+  sectionTitle: { 
+    color: COLORS.ACCENT, 
+    fontSize: 18, 
+    fontWeight: '700' 
+  },
   announcementCard: {
     width: 250,
     borderRadius: 18,
     padding: 18,
     marginRight: 15,
-    shadowColor: '#FFD700',
+    shadowColor: COLORS.ACCENT,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 6,
   },
-  announceTitle: { color: '#fff', fontSize: 17, fontWeight: '700' },
-  announceRow: { flexDirection: 'row', justifyContent: 'space-around' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-  circleBox: { alignItems: 'center', justifyContent: 'center' },
+  announceTitle: { 
+    color: COLORS.WHITE, 
+    fontSize: 17, 
+    fontWeight: '700' 
+  },
+  announceRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-around' 
+  },
+  titleRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 15 
+  },
+  circleBox: { 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
   countCircle: {
     width: 55,
     height: 55,
     borderRadius: 55,
-    backgroundColor: 'rgba(255,215,0,0.15)',
+    backgroundColor: 'rgba(255,214,0,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#FFD700',
+    borderColor: COLORS.ACCENT,
     marginBottom: 6,
   },
-  circleText: { color: '#FFD700', fontSize: 20, fontWeight: '800' },
-  circleLabel: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  circleText: { 
+    color: COLORS.ACCENT, 
+    fontSize: 20, 
+    fontWeight: '800' 
+  },
+  circleLabel: { 
+    color: COLORS.WHITE, 
+    fontSize: 12, 
+    fontWeight: '600' 
+  },
 });

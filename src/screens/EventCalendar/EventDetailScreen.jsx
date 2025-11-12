@@ -16,6 +16,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRoute } from '@react-navigation/native';
 import AppHeader from '../../components/AppHeader';
+import COLORS from '../../utils/colors';
 
 const EventDetailScreen = () => {
   const route = useRoute();
@@ -49,14 +50,14 @@ const EventDetailScreen = () => {
 
   if (!event) {
     return (
-      <LinearGradient colors={['#B83232', '#4A0000']} style={styles.container}>
+      <LinearGradient colors={COLORS.GRADIENT_PRIMARY} style={styles.container}>
         <StatusBar
           translucent
           backgroundColor="transparent"
           barStyle="light-content"
         />
         <View style={styles.center}>
-          <Text style={{ color: '#fff' }}>No event data</Text>
+          <Text style={{ color: COLORS.WHITE }}>No event data</Text>
         </View>
       </LinearGradient>
     );
@@ -76,7 +77,7 @@ const EventDetailScreen = () => {
   };
 
   return (
-    <LinearGradient colors={['#9B111E', '#4A0000']} style={styles.container}>
+    <LinearGradient colors={COLORS.GRADIENT_PRIMARY} style={styles.container}>
       <StatusBar
         translucent
         backgroundColor="transparent"
@@ -104,7 +105,7 @@ const EventDetailScreen = () => {
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.topName}>{event.name}</Text>
             <View style={styles.row}>
-              <Icon name="phone" size={16} color="#FFD700" />
+              <Icon name="phone" size={16} color={COLORS.ACCENT} />
               <TouchableOpacity onPress={() => handleCall(event.contact_no)}>
                 <Text
                   style={[styles.topInfo, { textDecorationLine: 'underline' }]}
@@ -115,7 +116,7 @@ const EventDetailScreen = () => {
             </View>
 
             <View style={styles.row}>
-              <Icon name="map-marker" size={16} color="#FFD700" />
+              <Icon name="map-marker" size={16} color={COLORS.ACCENT} />
               <Text style={styles.topInfo} numberOfLines={2}>
                 {event.venue}
               </Text>
@@ -129,7 +130,7 @@ const EventDetailScreen = () => {
 
           <View style={styles.detailRow}>
             <View style={styles.labelContainer}>
-              <Icon name="account" size={16} color="#FFD700" />
+              <Icon name="account" size={16} color={COLORS.ACCENT} />
               <Text style={styles.label}>Name</Text>
             </View>
             <Text style={styles.value}>{event.name}</Text>
@@ -137,14 +138,14 @@ const EventDetailScreen = () => {
 
           <View style={styles.detailRow}>
             <View style={styles.labelContainer}>
-              <Icon name="phone" size={16} color="#FFD700" />
+              <Icon name="phone" size={16} color={COLORS.ACCENT} />
               <Text style={styles.label}>Contact No</Text>
             </View>
             <TouchableOpacity onPress={() => handleCall(event.contact_no)}>
               <Text
                 style={[
                   styles.value,
-                  { color: '#FFD700', textDecorationLine: 'underline' },
+                  { color: COLORS.ACCENT, textDecorationLine: 'underline' },
                 ]}
               >
                 {event.contact_no}
@@ -154,7 +155,7 @@ const EventDetailScreen = () => {
 
           <View style={styles.detailRow}>
             <View style={styles.labelContainer}>
-              <Icon name="barcode" size={16} color="#FFD700" />
+              <Icon name="barcode" size={16} color={COLORS.ACCENT} />
               <Text style={styles.label}>Function Code</Text>
             </View>
             <Text style={styles.value}>{event.function_code}</Text>
@@ -162,7 +163,7 @@ const EventDetailScreen = () => {
 
           <View style={styles.detailRow}>
             <View style={styles.labelContainer}>
-              <Icon name="map-marker" size={16} color="#FFD700" />
+              <Icon name="map-marker" size={16} color={COLORS.ACCENT} />
               <Text style={styles.label}>Venue</Text>
             </View>
             <Text style={styles.value}>{event.venue}</Text>
@@ -170,7 +171,7 @@ const EventDetailScreen = () => {
 
           <View style={styles.detailRow}>
             <View style={styles.labelContainer}>
-              <Icon name="account-group" size={16} color="#FFD700" />
+              <Icon name="account-group" size={16} color={COLORS.ACCENT} />
               <Text style={styles.label}>No Of Guest</Text>
             </View>
             <Text style={styles.value}>{event.guest}</Text>
@@ -178,7 +179,7 @@ const EventDetailScreen = () => {
 
           <View style={styles.detailRow}>
             <View style={styles.labelContainer}>
-              <Icon name="currency-usd" size={16} color="#FFD700" />
+              <Icon name="currency-usd" size={16} color={COLORS.ACCENT} />
               <Text style={styles.label}>Total</Text>
             </View>
             <Text style={styles.value}>Rs. {total.toLocaleString()}</Text>
@@ -186,7 +187,7 @@ const EventDetailScreen = () => {
 
           <View style={styles.detailRow}>
             <View style={styles.labelContainer}>
-              <Icon name="cash" size={16} color="#FFD700" />
+              <Icon name="cash" size={16} color={COLORS.ACCENT} />
               <Text style={styles.label}>Advance</Text>
             </View>
             <Text style={styles.value}>Rs. {advance.toLocaleString()}</Text>
@@ -194,13 +195,13 @@ const EventDetailScreen = () => {
 
           <View style={styles.detailRow}>
             <View style={styles.labelContainer}>
-              <Icon name="calculator" size={16} color="#FFD700" />
+              <Icon name="calculator" size={16} color={COLORS.ACCENT} />
               <Text style={styles.label}>Remaining</Text>
             </View>
             <Text
               style={[
                 styles.value,
-                { color: remaining > 0 ? '#FF6B6B' : '#4ECDC4' },
+                { color: remaining > 0 ? COLORS.ERROR : COLORS.SUCCESS },
               ]}
             >
               Rs. {remaining.toLocaleString()}
@@ -209,7 +210,7 @@ const EventDetailScreen = () => {
 
           <View style={styles.detailRow}>
             <View style={styles.labelContainer}>
-              <Icon name="clock" size={16} color="#FFD700" />
+              <Icon name="clock" size={16} color={COLORS.ACCENT} />
               <Text style={styles.label}>Time</Text>
             </View>
             <Text style={styles.value}>{event.time}</Text>
@@ -221,7 +222,7 @@ const EventDetailScreen = () => {
           <Text style={styles.sectionTitle}>Actions</Text>
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
-              <Icon name="check-circle" size={20} color="#4A0000" />
+              <Icon name="check-circle" size={20} color={COLORS.PRIMARY_DARK} />
               <Text style={styles.confirmText}>Confirm</Text>
             </TouchableOpacity>
 
@@ -229,7 +230,7 @@ const EventDetailScreen = () => {
               style={styles.tentativeBtn}
               onPress={handleTentative}
             >
-              <Icon name="clock-outline" size={20} color="#FFD700" />
+              <Icon name="clock-outline" size={20} color={COLORS.ACCENT} />
               <Text style={styles.tentativeText}>Tentative</Text>
             </TouchableOpacity>
           </View>
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 18,
-    shadowColor: '#000',
+    shadowColor: COLORS.BLACK,
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 5,
@@ -270,13 +271,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   topName: {
-    color: '#fff',
+    color: COLORS.WHITE,
     fontSize: 19,
     fontWeight: '800',
     marginBottom: 8,
   },
   topInfo: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 14,
     marginLeft: 8,
     flex: 1,
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 16,
@@ -320,7 +321,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   value: {
-    color: '#fff',
+    color: COLORS.WHITE,
     fontSize: 14,
     fontWeight: '700',
     textAlign: 'right',
@@ -338,7 +339,7 @@ const styles = StyleSheet.create({
   },
   confirmBtn: {
     flex: 1,
-    backgroundColor: '#FFD700',
+    backgroundColor: COLORS.ACCENT,
     paddingVertical: 14,
     borderRadius: 12,
     marginRight: 8,
@@ -347,7 +348,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   confirmText: {
-    color: '#4A0000',
+    color: COLORS.PRIMARY_DARK,
     fontWeight: '700',
     fontSize: 15,
     marginLeft: 8,
@@ -362,10 +363,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#FFD700',
+    borderColor: COLORS.ACCENT,
   },
   tentativeText: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontWeight: '700',
     fontSize: 15,
     marginLeft: 8,

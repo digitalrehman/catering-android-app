@@ -12,6 +12,7 @@ import { Calendar } from 'react-native-calendars';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppHeader from '../../../components/AppHeader';
 import { useNavigation } from '@react-navigation/native';
+import COLORS from '../../../utils/colors';
 
 const KitchenScreen = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -25,8 +26,16 @@ const KitchenScreen = () => {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
-      Animated.timing(overlayAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 700,
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayAnim, {
+        toValue: 1,
+        duration: 900,
+        useNativeDriver: true,
+      }),
     ]).start();
 
     const dummyEvents = [
@@ -39,9 +48,13 @@ const KitchenScreen = () => {
 
     const marks = {};
     dummyEvents.forEach(e => {
-      marks[e.date] = { marked: true, dotColor: '#FFD700' };
+      marks[e.date] = { marked: true, dotColor: COLORS.ACCENT };
     });
-    marks[today] = { ...marks[today], selected: true, selectedColor: '#FFD700' };
+    marks[today] = {
+      ...marks[today],
+      selected: true,
+      selectedColor: COLORS.ACCENT,
+    };
     setMarkedDates(marks);
   }, []);
 
@@ -61,26 +74,30 @@ const KitchenScreen = () => {
     newMarks[date] = {
       ...(newMarks[date] || {}),
       selected: true,
-      selectedColor: '#FFD700',
+      selectedColor: COLORS.ACCENT,
     };
     setMarkedDates(newMarks);
   };
 
   const buttons = [
     { label: 'HF', icon: 'home', screen: 'HF' },
-    { label: 'Kitchen', icon: 'silverware-fork-knife', screen: 'KitchenDetail' },
+    {
+      label: 'Kitchen',
+      icon: 'silverware-fork-knife',
+      screen: 'KitchenDetail',
+    },
     { label: 'Office', icon: 'office-building', screen: 'OfficeScreen' },
     { label: 'Gatepass', icon: 'gate', screen: 'GatepassScreen' },
   ];
 
   return (
-    <LinearGradient colors={['#B83232', '#4A0000']} style={styles.container}>
+    <LinearGradient colors={COLORS.GRADIENT_PRIMARY} style={styles.container}>
       <Animated.View
         pointerEvents="none"
         style={[
           StyleSheet.absoluteFill,
           {
-            backgroundColor: '#ffffff',
+            backgroundColor: COLORS.WHITE,
             opacity: overlayAnim.interpolate({
               inputRange: [0, 1],
               outputRange: [0.35, 0],
@@ -96,14 +113,14 @@ const KitchenScreen = () => {
           <Calendar
             theme={{
               calendarBackground: 'transparent',
-              dayTextColor: '#fff',
-              monthTextColor: '#FFD700',
-              todayTextColor: '#990303',
-              arrowColor: '#FFD700',
+              dayTextColor: COLORS.WHITE,
+              monthTextColor: COLORS.ACCENT,
+              todayTextColor: COLORS.PRIMARY_DARK,
+              arrowColor: COLORS.ACCENT,
               textDisabledColor: 'rgba(255,255,255,0.35)',
-              selectedDayBackgroundColor: '#FFD700',
-              selectedDayTextColor: '#000',
-              dotColor: '#FFD700',
+              selectedDayBackgroundColor: COLORS.ACCENT,
+              selectedDayTextColor: COLORS.BLACK,
+              dotColor: COLORS.ACCENT,
             }}
             markedDates={markedDates}
             onDayPress={onDayPress}
@@ -124,12 +141,12 @@ const KitchenScreen = () => {
                 onPress={() => navigation.navigate(btn.screen)}
               >
                 <LinearGradient
-                  colors={['#ff5555', '#8B0000']}
+                  colors={COLORS.GRADIENT_PRIMARY}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.card}
                 >
-                  <Icon name={btn.icon} size={28} color="#FFD700" />
+                  <Icon name={btn.icon} size={28} color={COLORS.ACCENT} />
                   <Text style={styles.cardText}>{btn.label}</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -163,13 +180,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 6,
-    shadowColor: '#000',
+    shadowColor: COLORS.BLACK,
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 3 },
     shadowRadius: 6,
   },
   cardText: {
-    color: '#fff',
+    color: COLORS.WHITE,
     fontWeight: '700',
     fontSize: 16,
     marginTop: 8,

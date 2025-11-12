@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { TouchableOpacity, Animated, StyleSheet, Text } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import COLORS from '../utils/colors';
 
 const DashboardTile = ({ icon, label, onPress }) => {
   const pressAnim = useRef(new Animated.Value(1)).current;
@@ -30,10 +31,10 @@ const DashboardTile = ({ icon, label, onPress }) => {
         style={styles.card}
       >
         <LinearGradient
-          colors={['rgba(255,215,0,0.15)', 'rgba(255,255,255,0.08)']}
+          colors={['rgba(255,214,0,0.15)', 'rgba(255,255,255,0.08)']} // Direct rgba for yellow
           style={styles.gradient}
         >
-          <Icon name={icon} size={30} color="#FFD700" />
+          <Icon name={icon} size={30} color={COLORS.ACCENT} />
           <Text style={styles.label}>{label}</Text>
         </LinearGradient>
       </TouchableOpacity>
@@ -58,7 +59,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.2)',
   },
   label: {
-    color: '#FFD700',
+    color: COLORS.ACCENT,
     fontSize: 14,
     fontWeight: '600',
     marginTop: 8,
