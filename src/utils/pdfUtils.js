@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import RNFetchBlob from 'react-native-blob-util';
 import { encode as btoa } from 'base-64';
+import COLORS from '../utils/colors';
 
 export const numberToWords = num => {
   if (num === 0) return 'Zero Rupees Only';
@@ -70,6 +71,15 @@ export const numberToWords = num => {
   return words.trim() + ' Rupees Only';
 };
 
+// ✅ Helper function to convert hex to RGB
+const hexToRgb = hex => {
+  hex = hex.replace(/^#/, '');
+  const r = parseInt(hex.substring(0, 2), 16) / 255;
+  const g = parseInt(hex.substring(2, 4), 16) / 255;
+  const b = parseInt(hex.substring(4, 6), 16) / 255;
+  return rgb(r, g, b);
+};
+
 export const generatePDFFile = async (event, eventDetails) => {
   const {
     food = [],
@@ -80,14 +90,23 @@ export const generatePDFFile = async (event, eventDetails) => {
 
   const totalAmount = parseFloat(event.total || 0);
   const advanceAmount = parseFloat(event.advance || 0);
-  const discount = 0.05 * totalAmount; // ✅ hardcoded 5% discount for now
-  const balanceAmount = totalAmount - advanceAmount - discount;
+
+  // ✅ Get discount from event data instead of hardcoding
+  const discountAmount = parseFloat(
+    event.originalData?.discount1 || event.discount1 || 0,
+  );
+  const balanceAmount = totalAmount - advanceAmount - discountAmount;
 
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([595.28, 841.89]);
   const { width, height } = page.getSize();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  // ✅ Use imported colors
+  const primaryColor = hexToRgb(COLORS.PRIMARY);
+  const accentColor = hexToRgb(COLORS.ACCENT);
+  const darkColor = hexToRgb(COLORS.PRIMARY_DARK);
 
   let y = height - 50;
   const drawText = (
@@ -109,21 +128,21 @@ export const generatePDFFile = async (event, eventDetails) => {
   const addSpace = (space = 14) => (y -= space);
 
   // --- Header ---
-  drawText('CATERING SERVICES', 50, y, 20, true, rgb(0.72, 0.2, 0.2));
+  drawText('CATERING SERVICES', 50, y, 20, true, primaryColor);
   addSpace(25);
-  drawText('QUOTATION', 50, y, 16, true);
+  drawText('QUOTATION', 50, y, 16, true, primaryColor);
   addSpace(20);
   page.drawLine({
     start: { x: 50, y },
     end: { x: width - 50, y },
     thickness: 1.5,
-    color: rgb(0.72, 0.2, 0.2),
+    color: primaryColor,
   });
   addSpace(25);
 
   // --- Client Info ---
   const clientTopY = y;
-  drawText('CLIENT INFORMATION', 50, clientTopY, 13, true, rgb(0.72, 0.2, 0.2));
+  drawText('CLIENT INFORMATION', 50, clientTopY, 13, true, primaryColor);
   addSpace(18);
   drawText(`Party Name: ${event.name}`, 60, y);
   addSpace();
@@ -139,7 +158,7 @@ export const generatePDFFile = async (event, eventDetails) => {
 
   // --- Event Details ---
   const baseY = clientTopY - 2;
-  drawText('EVENT DETAILS', 320, baseY, 13, true, rgb(0.72, 0.2, 0.2));
+  drawText('EVENT DETAILS', 320, baseY, 13, true, primaryColor);
   drawText(`Guests: ${event.guest}`, 330, baseY - 18);
   drawText(`Date: ${event.date}`, 330, baseY - 33);
   drawText(`Time: ${event.time || 'N/A'}`, 330, baseY - 48);
@@ -156,72 +175,70 @@ export const generatePDFFile = async (event, eventDetails) => {
     });
   };
 
-const addSection = (items, title) => {
-  if (!items.length) return 0;
-  let sectionTotal = 0;
+  const addSection = (items, title) => {
+    if (!items.length) return 0;
+    let sectionTotal = 0;
 
-  // Section Title
-  drawText(title.toUpperCase(), 50, y, 13, true, rgb(0.72, 0.2, 0.2));
-  addSpace(18);
+    // Section Title
+    drawText(title.toUpperCase(), 50, y, 13, true, primaryColor);
+    addSpace(18);
 
-  // Table Header
-  const headers = ['#', 'Description', 'Qty', 'Rate', 'Amount'];
-  const headerX = [55, 80, 390, 440, 510];
-  const rowHeight = 20; // Height for each row
-  const cellPadding = 6; // Top padding inside row
+    // Table Header
+    const headers = ['#', 'Description', 'Qty', 'Rate', 'Amount'];
+    const headerX = [55, 80, 390, 440, 510];
+    const rowHeight = 20; // Height for each row
+    const cellPadding = 6; // Top padding inside row
 
-  // Draw header text
-  headers.forEach((h, i) => drawText(h, headerX[i], y, 10, true));
-  addSpace(rowHeight);
+    // Draw header text
+    headers.forEach((h, i) => drawText(h, headerX[i], y, 10, true));
+    addSpace(rowHeight);
 
-  // Header bottom line
-  page.drawLine({
-    start: { x: 50, y },
-    end: { x: width - 50, y },
-    thickness: 1,
-    color: rgb(0, 0, 0),
-  });
-  addSpace(5);
-
-  // Rows
-  items.forEach((item, index) => {
-    const qty = formatNum(item.quantity);
-    const rate = formatNum(item.unit_price);
-    const amount =
-      parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0);
-    sectionTotal += amount;
-
-    // Row bottom line
+    // Header bottom line
     page.drawLine({
-      start: { x: 50, y: y - rowHeight + cellPadding },
-      end: { x: width - 50, y: y - rowHeight + cellPadding },
-      thickness: 0.5,
-      color: rgb(0.7, 0.7, 0.7),
+      start: { x: 50, y },
+      end: { x: width - 50, y },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    addSpace(5);
+
+    // Rows
+    items.forEach((item, index) => {
+      const qty = formatNum(item.quantity);
+      const rate = formatNum(item.unit_price);
+      const amount =
+        parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0);
+      sectionTotal += amount;
+
+      // Row bottom line
+      page.drawLine({
+        start: { x: 50, y: y - rowHeight + cellPadding },
+        end: { x: width - 50, y: y - rowHeight + cellPadding },
+        thickness: 0.5,
+        color: rgb(0.7, 0.7, 0.7),
+      });
+
+      // Vertically centered text
+      const textY = y - rowHeight / 2 + 5; // center text
+      drawText(`${index + 1}`, 55, textY, 9);
+      drawText(item.description || 'N/A', 80, textY, 9);
+      drawText(qty, 390, textY, 9);
+      drawText(rate ? `Rs. ${rate}` : '', 440, textY, 9);
+      drawText(amount ? `Rs. ${formatNum(amount)}` : '', 510, textY, 9);
+
+      addSpace(rowHeight);
     });
 
-    // Vertically centered text
-    const textY = y - rowHeight / 2 + 5; // center text
-    drawText(`${index + 1}`, 55, textY, 9);
-    drawText(item.description || 'N/A', 80, textY, 9);
-    drawText(qty, 390, textY, 9);
-    drawText(rate ? `Rs. ${rate}` : '', 440, textY, 9);
-    drawText(amount ? `Rs. ${formatNum(amount)}` : '', 510, textY, 9);
+    // --- Extra space before section total ---
+    addSpace(10); // push total down from last row
 
-    addSpace(rowHeight);
-  });
+    // Section Total
+    drawText(`${title} Total:`, 380, y, 10, true);
+    drawText(`Rs. ${formatNum(sectionTotal)}`, 510, y, 10, true);
+    addSpace(15);
 
-  // --- Extra space before section total ---
-  addSpace(10); // push total down from last row
-
-  // Section Total
-  drawText(`${title} Total:`, 380, y, 10, true);
-  drawText(`Rs. ${formatNum(sectionTotal)}`, 510, y, 10, true);
-  addSpace(15);
-
-  return sectionTotal;
-};
-
-
+    return sectionTotal;
+  };
 
   addSection(food, 'Food');
   addSection(beverages, 'Beverages');
@@ -233,7 +250,7 @@ const addSection = (items, title) => {
     start: { x: 50, y },
     end: { x: width - 50, y },
     thickness: 1,
-    color: rgb(0.72, 0.2, 0.2),
+    color: primaryColor,
   });
   addSpace(25);
 
@@ -242,7 +259,7 @@ const addSection = (items, title) => {
   addSpace(18);
 
   drawText('Discount:', 380, y, 11, true);
-  drawText(`Rs. ${formatNum(discount)}`, 510, y, 11, true);
+  drawText(`Rs. ${formatNum(discountAmount)}`, 510, y, 11, true);
   addSpace(18);
 
   drawText('Received Payment:', 380, y, 11, true);
@@ -254,8 +271,8 @@ const addSection = (items, title) => {
   addSpace(28);
 
   // --- Amount in Words ---
-  const amountInWords = numberToWords(totalAmount - discount);
-  drawText('Amount in Words:', 50, y, 10, true, rgb(0.72, 0.2, 0.2));
+  const amountInWords = numberToWords(totalAmount - discountAmount);
+  drawText('Amount in Words:', 50, y, 10, true, primaryColor);
   addSpace(12);
   page.drawRectangle({
     x: 50,
@@ -268,7 +285,7 @@ const addSection = (items, title) => {
   addSpace(50);
 
   // --- Terms & Conditions ---
-  drawText('TERMS & CONDITIONS', 50, y, 11, true, rgb(0.72, 0.2, 0.2));
+  drawText('TERMS & CONDITIONS', 50, y, 11, true, primaryColor);
   addSpace(16);
   drawText(
     '• 100% payment 48 hours prior to the event along with PO.',
@@ -278,22 +295,33 @@ const addSection = (items, title) => {
   );
   addSpace(12);
   drawText(
-    '• This is a computer-generated document; no signature is required.',
+    '• 50% advance payment is required for confirmation.',
+    55,
+    y,
+    9,
+  );
+  addSpace(12);
+  drawText(
+    '• Cancellation must be notified 72 hours before the event.',
     55,
     y,
     9,
   );
   addSpace(40);
 
-  // --- Thank You ---
-  drawText(
-    'Thank you for your business!',
-    180,
-    y,
-    11,
-    true,
-    rgb(0.3, 0.3, 0.3),
-  );
+  // --- Thank You and Signature Line ---
+  // Center align "Thank you for your business!"
+  const thankYouText = 'Thank you for your business!';
+  const thankYouWidth = fontBold.widthOfTextAtSize(thankYouText, 11);
+  const thankYouX = (width - thankYouWidth) / 2;
+  drawText(thankYouText, thankYouX, y, 11, true, darkColor);
+  addSpace(25);
+
+  // Center align "This is a computer-generated document; no signature is required."
+  const signatureText = 'This is a computer-generated document; no signature is required.';
+  const signatureWidth = font.widthOfTextAtSize(signatureText, 9);
+  const signatureX = (width - signatureWidth) / 2;
+  drawText(signatureText, signatureX, y, 9, false, rgb(0.5, 0.5, 0.5));
 
   // --- Save File ---
   const pdfBytes = await pdfDoc.save();
