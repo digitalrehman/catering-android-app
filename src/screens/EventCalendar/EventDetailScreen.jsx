@@ -1,5 +1,5 @@
 // EventDetailScreen.jsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,10 @@ import COLORS from '../../utils/colors';
 const EventDetailScreen = () => {
   const route = useRoute();
   const { event } = route.params || {};
+  console.log('event', event);
+  
+  const [foodData, setFoodData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
@@ -32,6 +36,48 @@ const EventDetailScreen = () => {
       console.error('Failed to open dialer:', err),
     );
   };
+
+// Fetch food data
+const fetchFoodData = async () => {
+  try {
+    setLoading(true);
+    const formData = new FormData();
+    formData.append('order_no', event.id); // Using event.id as order_no from params
+
+    console.log('Sending order_no:', event.id);
+
+    const response = await fetch(
+      'https://cat.de2solutions.com/mobile_dash/get_event_food_decor_detail.php',
+      {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    console.log('API Response status:', response.status);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Food API Response:', data);
+    
+    if (data.status_food === 'true' || data.status_beverages === 'true' || data.status_decoration === 'true') {
+      setFoodData(data);
+    } else {
+      setFoodData(null);
+    }
+  } catch (error) {
+    console.error('Error fetching food data:', error);
+    Alert.alert('Error', `Failed to fetch food items data: ${error.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     Animated.parallel([
@@ -46,7 +92,12 @@ const EventDetailScreen = () => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+
+    // Fetch food data when component mounts
+    if (event && event.id) {
+      fetchFoodData();
+    }
+  }, [event]);
 
   if (!event) {
     return (
@@ -74,6 +125,100 @@ const EventDetailScreen = () => {
 
   const handleTentative = () => {
     Alert.alert('Tentative', `${event.name} set as tentative.`);
+  };
+
+  // Render food items
+  const renderFoodItems = () => {
+    if (loading) {
+      return (
+        <View style={styles.foodSection}>
+          <Text style={styles.sectionTitle}>Food Items</Text>
+          <Text style={styles.loadingText}>Loading food items...</Text>
+        </View>
+      );
+    }
+
+    if (!foodData) {
+      return (
+        <View style={styles.foodSection}>
+          <Text style={styles.sectionTitle}>Food Items</Text>
+          <Text style={styles.noDataText}>No food items data available</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.foodSection}>
+        <Text style={styles.sectionTitle}>Food Items</Text>
+
+        {/* Food Items */}
+        {foodData.status_food === 'true' && foodData.data_food && foodData.data_food.length > 0 && (
+          <View style={styles.foodCategory}>
+            <Text style={styles.categoryTitle}>Food</Text>
+            {foodData.data_food.map((item, index) => (
+              <View key={item.id || index} style={styles.foodItem}>
+                <View style={styles.foodItemHeader}>
+                  <Text style={styles.foodDescription}>{item.description}</Text>
+                  <Text style={styles.foodPrice}>Rs. {parseFloat(item.unit_price || 0).toLocaleString()}</Text>
+                </View>
+                <View style={styles.foodDetails}>
+                  <Text style={styles.foodDetailText}>Stock Code: {item.stk_code}</Text>
+                  <Text style={styles.foodDetailText}>Quantity: {item.quantity}</Text>
+                  <Text style={styles.foodDetailText}>Delivered: {item.delivered_qty}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Beverages */}
+        {foodData.status_beverages === 'true' && foodData.data_beverages && foodData.data_beverages.length > 0 && (
+          <View style={styles.foodCategory}>
+            <Text style={styles.categoryTitle}>Beverages</Text>
+            {foodData.data_beverages.map((item, index) => (
+              <View key={item.id || index} style={styles.foodItem}>
+                <View style={styles.foodItemHeader}>
+                  <Text style={styles.foodDescription}>{item.description}</Text>
+                  <Text style={styles.foodPrice}>Rs. {parseFloat(item.unit_price || 0).toLocaleString()}</Text>
+                </View>
+                <View style={styles.foodDetails}>
+                  <Text style={styles.foodDetailText}>Stock Code: {item.stk_code}</Text>
+                  <Text style={styles.foodDetailText}>Quantity: {item.quantity}</Text>
+                  <Text style={styles.foodDetailText}>Delivered: {item.delivered_qty}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Decorations */}
+        {foodData.status_decoration === 'true' && foodData.data_decoration && foodData.data_decoration.length > 0 && (
+          <View style={styles.foodCategory}>
+            <Text style={styles.categoryTitle}>Decorations</Text>
+            {foodData.data_decoration.map((item, index) => (
+              <View key={item.id || index} style={styles.foodItem}>
+                <View style={styles.foodItemHeader}>
+                  <Text style={styles.foodDescription}>{item.description}</Text>
+                  <Text style={styles.foodPrice}>Rs. {parseFloat(item.unit_price || 0).toLocaleString()}</Text>
+                </View>
+                <View style={styles.foodDetails}>
+                  <Text style={styles.foodDetailText}>Stock Code: {item.stk_code}</Text>
+                  <Text style={styles.foodDetailText}>Quantity: {item.quantity}</Text>
+                  <Text style={styles.foodDetailText}>Delivered: {item.delivered_qty}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* No items message */}
+        {(!foodData.data_food || foodData.data_food.length === 0) &&
+         (!foodData.data_beverages || foodData.data_beverages.length === 0) &&
+         (!foodData.data_decoration || foodData.data_decoration.length === 0) && (
+          <Text style={styles.noDataText}>No food items available</Text>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -217,6 +362,9 @@ const EventDetailScreen = () => {
           </View>
         </View>
 
+        {/* Food Items Section */}
+        {renderFoodItems()}
+
         {/* Action Buttons */}
         <View style={styles.actionCard}>
           <Text style={styles.sectionTitle}>Actions</Text>
@@ -288,6 +436,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   detailCard: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+  },
+  foodSection: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 16,
     padding: 20,
@@ -370,5 +524,65 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 15,
     marginLeft: 8,
+  },
+  // Food Items Styles
+  foodCategory: {
+    marginBottom: 20,
+  },
+  categoryTitle: {
+    color: COLORS.WHITE,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.2)',
+  },
+  foodItem: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  foodItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  foodDescription: {
+    color: COLORS.WHITE,
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 12,
+  },
+  foodPrice: {
+    color: COLORS.ACCENT,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  foodDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+  },
+  foodDetailText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    marginRight: 12,
+    marginBottom: 4,
+  },
+  loadingText: {
+    color: COLORS.ACCENT,
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  noDataText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

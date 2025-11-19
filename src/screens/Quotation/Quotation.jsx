@@ -16,6 +16,7 @@ import {
   ActivityIndicator,
   ToastAndroid,
   Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import COLORS from '../../utils/colors';
@@ -39,50 +40,28 @@ const makeDefaultRows = (startId = 1) =>
     manualTotal: false,
   }));
 
-const TableRow = memo(({ item, index, onUpdateCell, isEditMode }) => {
+// ✅ FIXED: TableRow component with HFScreen-like keyboard behavior
+const TableRow = memo(({ item, index, onUpdateCell, isEditMode, guestsCount }) => {
   const [menu, setMenu] = useState(item.menu);
   const [qty, setQty] = useState(item.qty);
   const [rate, setRate] = useState(item.rate);
   const [total, setTotal] = useState(item.total);
+  
+  // ✅ REAL-TIME: Direct parent update WITHOUT blur - HFScreen style
+  const updateParent = useCallback((field, value, markManual = false) => {
+    onUpdateCell(item.id, field, value, markManual);
+  }, [onUpdateCell, item.id]);
 
-  // ✅ FIXED: Track manual focus changes
-  const isManualFocusChange = useRef(false);
-  // ✅ FIXED: Track changes to save on unmount
-  const hasUnsavedChanges = useRef(false);
-  const unsavedData = useRef({});
+  // ✅ REAL-TIME: Menu change - No keyboard dismissal
+  const handleMenuChange = useCallback((text) => {
+    setMenu(text);
+    updateParent('menu', text);
+  }, [updateParent]);
 
-  useEffect(() => {
-    setMenu(item.menu);
-    setQty(item.qty);
-    setRate(item.rate);
-    setTotal(item.total);
-  }, [item.menu, item.qty, item.rate, item.total]);
-
-  // ✅ FIXED: Save unsaved data when component unmounts
-  useEffect(() => {
-    return () => {
-      if (hasUnsavedChanges.current) {
-        Object.keys(unsavedData.current).forEach(field => {
-          onUpdateCell(
-            item.id,
-            field,
-            unsavedData.current[field],
-            field === 'total',
-          );
-        });
-      }
-    };
-  }, [item.id]);
-
-  // ✅ FIXED: Track changes without immediate parent update
-  const trackChange = (field, value) => {
-    hasUnsavedChanges.current = true;
-    unsavedData.current[field] = value;
-  };
-
-  const handleQtyChange = text => {
+  // ✅ REAL-TIME: Qty change with auto calculation - No keyboard dismissal
+  const handleQtyChange = useCallback((text) => {
     setQty(text);
-    trackChange('qty', text);
+    updateParent('qty', text);
 
     // Auto calculate total
     if (!item.manualTotal) {
@@ -91,22 +70,25 @@ const TableRow = memo(({ item, index, onUpdateCell, isEditMode }) => {
       const calculatedTotal = qtyNum * rateNum;
 
       if (!isNaN(calculatedTotal)) {
-        const formattedTotal =
-          calculatedTotal % 1 === 0
-            ? calculatedTotal.toString()
-            : calculatedTotal.toFixed(2);
-
+        const formattedTotal = calculatedTotal % 1 === 0 
+          ? calculatedTotal.toString() 
+          : calculatedTotal.toFixed(2);
+        
         if (formattedTotal !== total) {
           setTotal(formattedTotal);
-          trackChange('total', formattedTotal);
+          updateParent('total', formattedTotal);
         }
+      } else if (text === '' && total !== '') {
+        setTotal('');
+        updateParent('total', '');
       }
     }
-  };
+  }, [updateParent, item.manualTotal, rate, total]);
 
-  const handleRateChange = text => {
+  // ✅ REAL-TIME: Rate change with auto calculation - No keyboard dismissal
+  const handleRateChange = useCallback((text) => {
     setRate(text);
-    trackChange('rate', text);
+    updateParent('rate', text);
 
     // Auto calculate total
     if (!item.manualTotal) {
@@ -115,52 +97,34 @@ const TableRow = memo(({ item, index, onUpdateCell, isEditMode }) => {
       const calculatedTotal = qtyNum * rateNum;
 
       if (!isNaN(calculatedTotal)) {
-        const formattedTotal =
-          calculatedTotal % 1 === 0
-            ? calculatedTotal.toString()
-            : calculatedTotal.toFixed(2);
-
+        const formattedTotal = calculatedTotal % 1 === 0 
+          ? calculatedTotal.toString() 
+          : calculatedTotal.toFixed(2);
+        
         if (formattedTotal !== total) {
           setTotal(formattedTotal);
-          trackChange('total', formattedTotal);
+          updateParent('total', formattedTotal);
         }
+      } else if (text === '' && total !== '') {
+        setTotal('');
+        updateParent('total', '');
       }
     }
-  };
+  }, [updateParent, item.manualTotal, qty, total]);
 
-  const handleMenuChange = text => {
-    setMenu(text);
-    trackChange('menu', text);
-  };
-
-  const handleTotalChange = text => {
+  // ✅ REAL-TIME: Total change (manual entry) - No keyboard dismissal
+  const handleTotalChange = useCallback((text) => {
     setTotal(text);
-    trackChange('total', text);
-  };
+    updateParent('total', text, true);
+  }, [updateParent]);
 
-  // ✅ FIXED: Better blur handling - skip for manual focus changes
-  const handleBlur = (field, value) => {
-    // Agar user manually click kar raha hai to blur skip karo
-    if (isManualFocusChange.current) {
-      isManualFocusChange.current = false;
-      return;
-    }
-
-    // Normal blur - save data
-    if (item[field] !== value) {
-      onUpdateCell(item.id, field, value, field === 'total');
-      // Clear from unsaved data
-      delete unsavedData.current[field];
-      if (Object.keys(unsavedData.current).length === 0) {
-        hasUnsavedChanges.current = false;
-      }
-    }
-  };
-
-  // ✅ FIXED: Handle manual focus change
-  const handleManualFocus = () => {
-    isManualFocusChange.current = true;
-  };
+  // ✅ Sync with parent data changes
+  useEffect(() => {
+    setMenu(item.menu);
+    setQty(item.qty);
+    setRate(item.rate);
+    setTotal(item.total);
+  }, [item.menu, item.qty, item.rate, item.total]);
 
   return (
     <View style={styles.row}>
@@ -174,9 +138,9 @@ const TableRow = memo(({ item, index, onUpdateCell, isEditMode }) => {
           style={styles.cellInput}
           value={menu}
           onChangeText={handleMenuChange}
-          onBlur={() => handleBlur('menu', menu)}
-          onFocus={handleManualFocus}
-          blurOnSubmit={false}
+          blurOnSubmit={false} // ✅ Important: Keyboard band na ho
+          returnKeyType="next"
+          keyboardShouldPersistTaps="handled" // ✅ Important
         />
       </View>
 
@@ -187,9 +151,9 @@ const TableRow = memo(({ item, index, onUpdateCell, isEditMode }) => {
           value={qty}
           keyboardType="decimal-pad"
           onChangeText={handleQtyChange}
-          onBlur={() => handleBlur('qty', qty)}
-          onFocus={handleManualFocus}
-          blurOnSubmit={false}
+          blurOnSubmit={false} // ✅ Important: Keyboard band na ho
+          returnKeyType="next"
+          keyboardShouldPersistTaps="handled" // ✅ Important
         />
       </View>
 
@@ -200,9 +164,9 @@ const TableRow = memo(({ item, index, onUpdateCell, isEditMode }) => {
           value={rate}
           keyboardType="decimal-pad"
           onChangeText={handleRateChange}
-          onBlur={() => handleBlur('rate', rate)}
-          onFocus={handleManualFocus}
-          blurOnSubmit={false}
+          blurOnSubmit={false} // ✅ Important: Keyboard band na ho
+          returnKeyType="next"
+          keyboardShouldPersistTaps="handled" // ✅ Important
         />
       </View>
 
@@ -213,8 +177,9 @@ const TableRow = memo(({ item, index, onUpdateCell, isEditMode }) => {
           value={total}
           keyboardType="decimal-pad"
           onChangeText={handleTotalChange}
-          onBlur={() => handleBlur('total', total)}
-          onFocus={handleManualFocus}
+          blurOnSubmit={false} // ✅ Important: Keyboard band na ho
+          returnKeyType="done"
+          keyboardShouldPersistTaps="handled" // ✅ Important
         />
       </View>
     </View>
@@ -249,7 +214,7 @@ const RadioButtonColumn = memo(({ label, selected, onPress, isRateMode }) => {
   );
 });
 
-// ✅ FIXED: OwnerAmountInput with proper formatting
+// ✅ FIXED: OwnerAmountInput with HFScreen-like behavior
 const OwnerAmountInput = memo(({ value, onChange, tableName }) => {
   const textInputRef = useRef(null);
   const [localValue, setLocalValue] = useState(value || '');
@@ -260,39 +225,139 @@ const OwnerAmountInput = memo(({ value, onChange, tableName }) => {
   }, [value]);
 
   const handleChange = text => {
-    // Allow only numbers and decimal
     const cleaned = text.replace(/[^0-9.]/g, '');
     setLocalValue(cleaned);
+    // ✅ REAL-TIME: Parent ko immediately update karo - HFScreen style
+    onChange(cleaned);
   };
 
   const handleBlur = () => {
     setIsFocused(false);
-    if (localValue !== value) {
-      onChange(localValue);
-    }
   };
 
   const handleFocus = () => {
     setIsFocused(true);
   };
 
-  const handleSubmitEditing = () => {
-    handleBlur();
-  };
-
   return (
     <TextInput
       ref={textInputRef}
       value={localValue}
-      onChangeText={handleChange}
+      onChangeText={handleChange} // ✅ Real-time update
       onBlur={handleBlur}
       onFocus={handleFocus}
-      onSubmitEditing={handleSubmitEditing}
       keyboardType="numeric"
       style={[styles.ownerInput, isFocused && styles.ownerInputFocused]}
-      blurOnSubmit={false}
+      blurOnSubmit={false} // ✅ Important: Keyboard band na ho
       returnKeyType="done"
+      keyboardShouldPersistTaps="handled" // ✅ Important
     />
+  );
+});
+
+// ✅ FIXED: TableComponent with proper props
+const TableComponent = memo(({
+  rows,
+  setRows,
+  title,
+  tableName,
+  ownerAmount,
+  onOwnerAmountChange,
+  manualTotal,
+  onManualTotalChange,
+  guestsCount,
+  updateRow,
+  addRow,
+  formatCurrency,
+  eventData
+}) => {
+  const handleUpdateCell = useCallback(
+    (id, key, value, markManual = false) => {
+      updateRow(setRows, id, key, value, markManual);
+    },
+    [setRows, updateRow],
+  );
+
+  const tableTotal = useMemo(() => {
+    if (manualTotal && manualTotal !== '') {
+      return parseFloat(manualTotal) || 0;
+    }
+
+    const rowsTotal = rows.reduce((acc, row) => {
+      return acc + (parseFloat(row.total || 0) || 0);
+    }, 0);
+
+    let ownerTotal = 0;
+
+    if (tableName === 'food')
+      ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
+    else if (tableName === 'dec')
+      ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
+    else if (tableName === 'services')
+      ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
+
+    return rowsTotal + ownerTotal;
+  }, [rows, manualTotal, ownerAmount, guestsCount, tableName]);
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>
+        {title} 
+      </Text>
+
+      <View style={styles.headerRow}>
+        <Text style={[styles.headerCell, { flex: 0.1 }]}>S#</Text>
+        <Text style={[styles.headerCell, { flex: 0.45 }]}>Detail</Text>
+        <Text style={[styles.headerCell, { flex: 0.1 }]}>Qty</Text>
+        <Text style={[styles.headerCell, { flex: 0.15 }]}>Rate</Text>
+        <Text style={[styles.headerCell, { flex: 0.2 }]}>Total</Text>
+      </View>
+
+      {rows.map((item, index) => (
+        <TableRow
+          key={`${tableName}-${item.id}-${index}`}
+          item={item}
+          index={index}
+          onUpdateCell={handleUpdateCell}
+          tableName={tableName}
+          isEditMode={!!eventData?.id}
+          guestsCount={guestsCount}
+        />
+      ))}
+
+      <View style={styles.addAndTotalsRow}>
+        <TouchableOpacity
+          style={styles.smallAddLeft}
+          onPress={() => addRow(rows, setRows)}
+        >
+          <Ionicons name="add" size={18} color={COLORS.WHITE} />
+        </TouchableOpacity>
+
+        <View style={styles.ownerAmountWrap}>
+          <OwnerAmountInput
+            value={ownerAmount}
+            onChange={onOwnerAmountChange}
+            tableName={tableName}
+          />
+        </View>
+
+        <View style={styles.totalInlineRow}>
+          <Text style={styles.totalLabelSmall}>
+            {title.includes('Food')
+              ? 'Food Total'
+              : title.includes('Services')
+              ? 'Services Total'
+              : 'Decor Total'}
+            :
+          </Text>
+          <View style={styles.totalCellSmall}>
+            <Text style={styles.totalValueSmall}>
+              {formatCurrency(tableTotal)}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </View>
   );
 });
 
@@ -300,7 +365,6 @@ const Quotation = ({ navigation }) => {
   const user = useSelector(state => state.Data.currentData);
   const route = useRoute();
   const { eventData } = route.params || {};
-  console.log('eventData', eventData);
 
   const [clientInfo, setClientInfo] = useState({
     contactNo: '',
@@ -694,37 +758,11 @@ const Quotation = ({ navigation }) => {
     fetchEventDetails();
   }, [eventData, directors]);
 
-  // ✅ NEW: Auto calculate when relevant data changes - EDIT MODE KE LIYE
-  useEffect(() => {
-    if (eventData?.id) {
-      // Edit mode mein hain, calculation trigger karo
-      const timer = setTimeout(() => {
-        console.log('Auto calculating in edit mode...');
-      }, 500);
-
-      return () => clearTimeout(timer);
-    }
-  }, [
-    foodRows,
-    decRows,
-    servicesRows,
-    discountAmount,
-    cashReceived,
-    bankAmount,
-    advanceMode,
-    clientInfo.noOfGuest,
-    foodOwnerAmount,
-    decOwnerAmount,
-    servicesOwnerAmount,
-    beverageType,
-    serviceType,
-  ]);
-
   const updateClientInfo = useCallback((key, value) => {
     setClientInfo(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  // ✅ FIXED: updateRow function jo properly use ho raha hai
+  // ✅ FIXED: updateRow function
   const updateRow = useCallback(
     (rowsSetter, id, key, value, markManual = false) => {
       rowsSetter(prev => {
@@ -744,7 +782,6 @@ const Quotation = ({ navigation }) => {
           const rt = parseFloat(item.rate || 0);
           const calculatedTotal =
             !isNaN(q) && !isNaN(rt) ? (q * rt).toFixed(2) : '';
-          // Remove .00 if whole number
           item.total = calculatedTotal.endsWith('.00')
             ? calculatedTotal.split('.')[0]
             : calculatedTotal;
@@ -777,6 +814,7 @@ const Quotation = ({ navigation }) => {
   const sumTable = rows =>
     rows.reduce((acc, r) => acc + (parseFloat(r.total || 0) || 0), 0);
 
+  // ✅ FIXED: clientInfo se guestsCount access
   const guestsCount = Number(clientInfo.noOfGuest) || 0;
   const foodAutoTotal = useMemo(() => sumTable(foodRows), [foodRows]);
   const decAutoTotal = useMemo(() => sumTable(decRows), [decRows]);
@@ -1065,115 +1103,6 @@ const Quotation = ({ navigation }) => {
     }
   };
 
-  // ✅ FIXED: TableComponent jo aapke updateRow function ko use karega
-  const TableComponent = memo(
-    ({
-      rows,
-      setRows,
-      title,
-      tableName,
-      ownerAmount,
-      onOwnerAmountChange,
-      manualTotal,
-      onManualTotalChange,
-      autoTotal,
-    }) => {
-      // ✅ Yahan global updateRow function ko use karo
-      const handleUpdateCell = useCallback(
-        (id, key, value, markManual = false) => {
-          updateRow(setRows, id, key, value, markManual);
-        },
-        [setRows],
-      );
-
-      // ✅ Calculate total for this table
-      const getTotalValue = () => {
-        if (manualTotal) return formatCurrency(manualTotal);
-
-        let ownerTotal = 0;
-        const guestsCount = Number(clientInfo.noOfGuest) || 0;
-
-        if (tableName === 'food')
-          ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
-        else if (tableName === 'dec')
-          ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
-        else if (tableName === 'services')
-          ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
-
-        return formatCurrency(autoTotal + ownerTotal);
-      };
-
-      return (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {title} {rateMode === 'perhead' ? '(Per Head)' : '(Per KG)'}
-          </Text>
-
-          <View style={styles.headerRow}>
-            <Text style={[styles.headerCell, { flex: 0.1 }]}>S#</Text>
-            <Text style={[styles.headerCell, { flex: 0.45 }]}>Detail</Text>
-            <Text style={[styles.headerCell, { flex: 0.1 }]}>Qty</Text>
-            <Text style={[styles.headerCell, { flex: 0.15 }]}>Rate</Text>
-            <Text style={[styles.headerCell, { flex: 0.2 }]}>Total</Text>
-          </View>
-
-          <ScrollView
-            style={[styles.tableBody]}
-            showsVerticalScrollIndicator={true}
-            keyboardShouldPersistTaps="always"
-            keyboardDismissMode="none"
-          >
-            {rows.map((item, index) => (
-              <TableRow
-                key={`${tableName}-${item.id}-${index}`}
-                item={item}
-                index={index}
-                onUpdateCell={handleUpdateCell}
-                tableName={tableName}
-                isEditMode={!!eventData?.id}
-              />
-            ))}
-          </ScrollView>
-
-          {/* ✅ FIXED: Add Row, Owner Amount, and Total in one row */}
-          <View style={styles.addAndTotalsRow}>
-            {/* Add Row Button */}
-            <TouchableOpacity
-              style={styles.smallAddLeft}
-              onPress={() => addRow(rows, setRows)}
-            >
-              <Ionicons name="add" size={18} color={COLORS.WHITE} />
-            </TouchableOpacity>
-
-            {/* Owner Amount Input */}
-            <View style={styles.ownerAmountWrap}>
-              <OwnerAmountInput
-                value={ownerAmount}
-                onChange={onOwnerAmountChange}
-                tableName={tableName}
-              />
-            </View>
-
-            {/* Total Display */}
-            <View style={styles.totalInlineRow}>
-              <Text style={styles.totalLabelSmall}>
-                {title.includes('Food')
-                  ? 'Food Total'
-                  : title.includes('Services')
-                  ? 'Services Total'
-                  : 'Decor Total'}
-                :
-              </Text>
-              <View style={styles.totalCellSmall}>
-                <Text style={styles.totalValueSmall}>{getTotalValue()}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      );
-    },
-  );
-
   const formatDisplayDate = isoString => {
     if (!isoString) return '';
     try {
@@ -1233,436 +1162,483 @@ const Quotation = ({ navigation }) => {
   return (
     <View style={styles.screen}>
       <AppHeader title="Quotation" />
-      <ScrollView
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={true}
+      
+      {/* ✅ IMPORTANT: KeyboardAvoidingView with proper behavior */}
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        {/* Client Information Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Client Information</Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled" // ✅ Important: HFScreen style
+          keyboardDismissMode="none" // ✅ Important: Keyboard band na ho
+        >
+          {/* Client Information Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Client Information</Text>
 
-          <View style={styles.infoCard}>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="Contact No."
-                placeholderTextColor="#b0b0b0"
-                value={clientInfo.contactNo}
-                keyboardType="phone-pad"
-                onChangeText={t => updateClientInfo('contactNo', t)}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Name"
-                placeholderTextColor="#b0b0b0"
-                value={clientInfo.name}
-                onChangeText={t => updateClientInfo('name', t)}
-              />
-            </View>
-
-            <View style={styles.inputRow}>
-              <TouchableOpacity
-                style={[styles.input, { justifyContent: 'center' }]}
-                onPress={() => openDatePicker('date')}
-              >
-                <Text
-                  style={{
-                    color: clientInfo.dateTime ? COLORS.DARK : '#b0b0b0',
-                    fontSize: 14,
-                  }}
-                >
-                  {clientInfo.dateTime
-                    ? formatDisplayDate(clientInfo.dateTime)
-                    : 'Date & Time'}
-                </Text>
-              </TouchableOpacity>
-              <TextInput
-                style={styles.input}
-                placeholder="No of Guest"
-                placeholderTextColor="#b0b0b0"
-                value={clientInfo.noOfGuest}
-                keyboardType="numeric"
-                onChangeText={t => updateClientInfo('noOfGuest', t)}
-              />
-            </View>
-
-            <View style={styles.inputRow}>
-              <View
-                style={[styles.input, { padding: 0, justifyContent: 'center' }]}
-              >
-                <Picker
-                  selectedValue={clientInfo.director}
-                  onValueChange={value => updateClientInfo('director', value)}
-                  dropdownIconColor={COLORS.PRIMARY_DARK}
-                  style={{
-                    color: clientInfo.director ? COLORS.DARK : '#b0b0b0',
-                    fontSize: 14,
-                  }}
-                >
-                  <Picker.Item
-                    label="Select Director"
-                    value=""
-                    color="#b0b0b0"
-                  />
-                  {directors.map(d => (
-                    <Picker.Item
-                      key={d.combo_code}
-                      label={d.description}
-                      value={d.description}
-                    />
-                  ))}
-                </Picker>
-              </View>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Venue"
-                placeholderTextColor="#b0b0b0"
-                value={clientInfo.venue}
-                onChangeText={t => updateClientInfo('venue', t)}
-              />
-            </View>
-          </View>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={tempDate}
-              mode={datePickerMode}
-              display={
-                Platform.OS === 'android'
-                  ? datePickerMode === 'date'
-                    ? 'calendar'
-                    : 'clock'
-                  : 'spinner'
-              }
-              onChange={onDateChange}
-              is24Hour={false}
-            />
-          )}
-
-          <View style={[styles.topGrid, styles.radioGroupRow]}>
-            {['perhead', 'perkg', 'F', 'D', 'F+D', 'F+S'].map(opt => {
-              const isRate = opt === 'perhead' || opt === 'perkg';
-              const selected = isRate ? rateMode === opt : serviceType === opt;
-
-              return (
-                <RadioButtonColumn
-                  key={opt}
-                  label={opt}
-                  selected={selected}
-                  isRateMode={isRate}
-                  onPress={() => {
-                    if (isRate) setRateMode(opt);
-                    else setServiceType(opt);
-                  }}
-                />
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Tables Section */}
-        {rateMode && serviceType ? (
-          <>
-            {(serviceType === 'F' ||
-              serviceType === 'F+D' ||
-              serviceType === 'F+S') && (
-              <>
-                <TableComponent
-                  rows={foodRows}
-                  setRows={setFoodRows}
-                  title="Food Details"
-                  autoTotal={foodAutoTotal}
-                  tableName="food"
-                  ownerAmount={foodOwnerAmount}
-                  onOwnerAmountChange={setFoodOwnerAmount}
-                  manualTotal={manualFoodTotal}
-                  onManualTotalChange={setManualFoodTotal}
-                />
-
-                <View style={styles.section}>
-                  <View style={styles.sectionHeaderRow}>
-                    <Text style={styles.sectionTitle}>Beverages</Text>
-                  </View>
-
-                  <View style={styles.beverageRow}>
-                    <TouchableOpacity
-                      style={[
-                        styles.checkboxOption,
-                        beverageType === 'regular' &&
-                          styles.checkboxOptionActive,
-                      ]}
-                      onPress={() => {
-                        setBeverageType(prev =>
-                          prev === 'regular' ? 'none' : 'regular',
-                        );
-                      }}
-                    >
-                      <Ionicons
-                        name={
-                          beverageType === 'regular'
-                            ? 'checkbox'
-                            : 'square-outline'
-                        }
-                        size={18}
-                        color={COLORS.PRIMARY_DARK}
-                      />
-                      <Text style={styles.checkboxLabel}>
-                        Regular (Rs. 250)
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.checkboxOption,
-                        beverageType === 'can' && styles.checkboxOptionActive,
-                      ]}
-                      onPress={() => {
-                        setBeverageType(prev =>
-                          prev === 'can' ? 'none' : 'can',
-                        );
-                      }}
-                    >
-                      <Ionicons
-                        name={
-                          beverageType === 'can' ? 'checkbox' : 'square-outline'
-                        }
-                        size={18}
-                        color={COLORS.PRIMARY_DARK}
-                      />
-                      <Text style={styles.checkboxLabel}>Can (Rs. 300)</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.beverageTotalRow}>
-                    <Text style={styles.totalLabelSmall}>Beverage Total:</Text>
-                    <Text style={styles.totalValueSmall}>
-                      Rs. {formatCurrency(beverageTotal)}
-                    </Text>
-                  </View>
-                </View>
-              </>
-            )}
-
-            {/* ✅ FIXED: Services Table for F+S */}
-            {serviceType === 'F+S' && (
-              <TableComponent
-                rows={servicesRows}
-                setRows={setServicesRows}
-                title="Services Details"
-                autoTotal={servicesAutoTotal}
-                tableName="services"
-                ownerAmount={servicesOwnerAmount}
-                onOwnerAmountChange={setServicesOwnerAmount}
-                manualTotal={manualServicesTotal}
-                onManualTotalChange={setManualServicesTotal}
-              />
-            )}
-
-            {/* ✅ FIXED: Decor Table for D and F+D */}
-            {(serviceType === 'D' || serviceType === 'F+D') && (
-              <TableComponent
-                rows={decRows}
-                setRows={setDecRows}
-                title="Decoration Details"
-                autoTotal={decAutoTotal}
-                tableName="dec"
-                ownerAmount={decOwnerAmount}
-                onOwnerAmountChange={setDecOwnerAmount}
-                manualTotal={manualDecTotal}
-                onManualTotalChange={setManualDecTotal}
-              />
-            )}
-
-            {rateMode === 'perhead' && (
-              <View style={[styles.section, { padding: 12 }]}>
-                <Text style={styles.totalLabel}>Special Instructions</Text>
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPress={() => setPerHeadExpanded(v => !v)}
-                >
-                  <TextInput
-                    style={[
-                      styles.perHeadInfoInput,
-                      perHeadExpanded ? styles.perHeadExpanded : null,
-                    ]}
-                    placeholder="Enter specific per-head menu or notes here..."
-                    placeholderTextColor="#666"
-                    multiline
-                    numberOfLines={perHeadExpanded ? 4 : 1}
-                    value={perHeadInfo}
-                    onChangeText={setPerHeadInfo}
-                    onFocus={() => setPerHeadExpanded(true)}
-                    onBlur={() => setPerHeadExpanded(false)}
-                  />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* ✅ NEW: Sub Total Row */}
-            <View style={styles.subTotalRow}>
-              <Text style={styles.subTotalLabel}>Sub Total</Text>
-              <Text style={styles.subTotalValue}>
-                Rs. {formatCurrency(subTotal)}
-              </Text>
-            </View>
-
-            {/* ✅ FIXED: Discount Section - Only Fixed */}
-            <View style={styles.section}>
-              <View style={styles.discountInputRow}>
-                <Text style={styles.sectionTitle}>Discount</Text>
+            <View style={styles.infoCard}>
+              <View style={styles.inputRow}>
                 <TextInput
-                  value={discountAmount}
-                  onChangeText={setDiscountAmount}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor="#666"
-                  style={styles.discountInput}
+                  style={styles.input}
+                  placeholder="Contact No."
+                  placeholderTextColor="#b0b0b0"
+                  value={clientInfo.contactNo}
+                  keyboardType="phone-pad"
+                  onChangeText={t => updateClientInfo('contactNo', t)}
+                  blurOnSubmit={false}
+                  keyboardShouldPersistTaps="handled"
                 />
-                <Text style={styles.discountValueText}>
-                  = Rs. {formatCurrency(discountValue)}
-                </Text>
-              </View>
-            </View>
-
-            {/* ✅ UPDATED: Grand Total Row */}
-            <View style={styles.grandTotalRow}>
-              <Text style={styles.grandLabel}>Grand Total</Text>
-              <Text style={styles.grandValue}>
-                Rs. {formatCurrency(grandTotal)}
-              </Text>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Advance Payment</Text>
-
-              <View style={styles.advanceRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.advanceOption,
-                    advanceMode === 'cash' && styles.advanceOptionActive,
-                  ]}
-                  onPress={() => setAdvanceMode('cash')}
-                >
-                  <Text
-                    style={
-                      advanceMode === 'cash'
-                        ? styles.advanceTextActive
-                        : styles.advanceText
-                    }
-                  >
-                    Cash
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.advanceOption,
-                    advanceMode === 'bank' && styles.advanceOptionActive,
-                  ]}
-                  onPress={() => setAdvanceMode('bank')}
-                >
-                  <Text
-                    style={
-                      advanceMode === 'bank'
-                        ? styles.advanceTextActive
-                        : styles.advanceText
-                    }
-                  >
-                    Bank
-                  </Text>
-                </TouchableOpacity>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Name"
+                  placeholderTextColor="#b0b0b0"
+                  value={clientInfo.name}
+                  onChangeText={t => updateClientInfo('name', t)}
+                  blurOnSubmit={false}
+                  keyboardShouldPersistTaps="handled"
+                />
               </View>
 
-              {advanceMode === 'cash' && (
-                <View style={styles.advanceInputRow}>
-                  <Text style={styles.totalLabelSmall}>Cash Received:</Text>
-                  <TextInput
-                    value={cashReceived}
-                    onChangeText={setCashReceived}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#666"
-                    style={styles.advanceInput}
-                  />
-                </View>
-              )}
-
-              {advanceMode === 'bank' && (
-                <>
-                  <View style={styles.bankDisplayRow}>
-                    <Text style={styles.bankNameText}>
-                      Selected Bank: {bankSelected}
-                    </Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.input,
-                      { padding: 0, justifyContent: 'center' },
-                    ]}
+              <View style={styles.inputRow}>
+                <TouchableOpacity
+                  style={[styles.input, { justifyContent: 'center' }]}
+                  onPress={() => openDatePicker('date')}
+                >
+                  <Text
+                    style={{
+                      color: clientInfo.dateTime ? COLORS.DARK : '#b0b0b0',
+                      fontSize: 14,
+                    }}
                   >
-                    <Picker
-                      selectedValue={bankSelected}
-                      onValueChange={setBankSelected}
-                      dropdownIconColor={COLORS.PRIMARY_DARK}
-                      style={{
-                        color: bankSelected ? COLORS.DARK : '#b0b0b0',
-                        fontSize: 14,
-                      }}
-                    >
-                      <Picker.Item
-                        label="Select Bank"
-                        value=""
-                        color="#b0b0b0"
-                      />
-                      {banks.map(b => (
-                        <Picker.Item
-                          key={b.id}
-                          label={b.bank_account_name}
-                          value={b.id}
-                        />
-                      ))}
-                    </Picker>
-                  </View>
+                    {clientInfo.dateTime
+                      ? formatDisplayDate(clientInfo.dateTime)
+                      : 'Date & Time'}
+                  </Text>
+                </TouchableOpacity>
+                <TextInput
+                  style={styles.input}
+                  placeholder="No of Guest"
+                  placeholderTextColor="#b0b0b0"
+                  value={clientInfo.noOfGuest}
+                  keyboardType="numeric"
+                  onChangeText={t => updateClientInfo('noOfGuest', t)}
+                  blurOnSubmit={false}
+                  keyboardShouldPersistTaps="handled"
+                />
+              </View>
 
-                  <View style={styles.advanceInputRow}>
-                    <Text style={styles.totalLabelSmall}>Amount:</Text>
-                    <TextInput
-                      value={bankAmount}
-                      onChangeText={setBankAmount}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor="#666"
-                      style={styles.advanceInput}
+              <View style={styles.inputRow}>
+                <View
+                  style={[
+                    styles.input,
+                    { padding: 0, justifyContent: 'center' },
+                  ]}
+                >
+                  <Picker
+                    selectedValue={clientInfo.director}
+                    onValueChange={value => updateClientInfo('director', value)}
+                    dropdownIconColor={COLORS.PRIMARY_DARK}
+                    style={{
+                      color: clientInfo.director ? COLORS.DARK : '#b0b0b0',
+                      fontSize: 14,
+                    }}
+                  >
+                    <Picker.Item
+                      label="Select Director"
+                      value=""
+                      color="#b0b0b0"
                     />
+                    {directors.map(d => (
+                      <Picker.Item
+                        key={d.combo_code}
+                        label={d.description}
+                        value={d.description}
+                      />
+                    ))}
+                  </Picker>
+                </View>
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Venue"
+                  placeholderTextColor="#b0b0b0"
+                  value={clientInfo.venue}
+                  onChangeText={t => updateClientInfo('venue', t)}
+                  blurOnSubmit={false}
+                  keyboardShouldPersistTaps="handled"
+                />
+              </View>
+            </View>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={tempDate}
+                mode={datePickerMode}
+                display={
+                  Platform.OS === 'android'
+                    ? datePickerMode === 'date'
+                      ? 'calendar'
+                      : 'clock'
+                    : 'spinner'
+                }
+                onChange={onDateChange}
+                is24Hour={false}
+              />
+            )}
+
+            <View style={[styles.topGrid, styles.radioGroupRow]}>
+              {['perhead', 'perkg', 'F', 'D', 'F+D', 'F+S'].map(opt => {
+                const isRate = opt === 'perhead' || opt === 'perkg';
+                const selected = isRate
+                  ? rateMode === opt
+                  : serviceType === opt;
+
+                return (
+                  <RadioButtonColumn
+                    key={opt}
+                    label={opt}
+                    selected={selected}
+                    isRateMode={isRate}
+                    onPress={() => {
+                      if (isRate) setRateMode(opt);
+                      else setServiceType(opt);
+                    }}
+                  />
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Tables Section */}
+          {rateMode && serviceType ? (
+            <>
+              {(serviceType === 'F' ||
+                serviceType === 'F+D' ||
+                serviceType === 'F+S') && (
+                <>
+                  <TableComponent
+                    rows={foodRows}
+                    setRows={setFoodRows}
+                    title="Food Details"
+                    tableName="food"
+                    ownerAmount={foodOwnerAmount}
+                    onOwnerAmountChange={setFoodOwnerAmount}
+                    manualTotal={manualFoodTotal}
+                    onManualTotalChange={setManualFoodTotal}
+                    guestsCount={guestsCount}
+                    updateRow={updateRow}
+                    addRow={addRow}
+                    formatCurrency={formatCurrency}
+                    eventData={eventData}
+                  />
+
+                  <View style={styles.section}>
+                    <View style={styles.sectionHeaderRow}>
+                      <Text style={styles.sectionTitle}>Beverages</Text>
+                    </View>
+
+                    <View style={styles.beverageRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.checkboxOption,
+                          beverageType === 'regular' &&
+                            styles.checkboxOptionActive,
+                        ]}
+                        onPress={() => {
+                          setBeverageType(prev =>
+                            prev === 'regular' ? 'none' : 'regular',
+                          );
+                        }}
+                      >
+                        <Ionicons
+                          name={
+                            beverageType === 'regular'
+                              ? 'checkbox'
+                              : 'square-outline'
+                          }
+                          size={18}
+                          color={COLORS.PRIMARY_DARK}
+                        />
+                        <Text style={styles.checkboxLabel}>
+                          Regular (Rs. 250)
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.checkboxOption,
+                          beverageType === 'can' && styles.checkboxOptionActive,
+                        ]}
+                        onPress={() => {
+                          setBeverageType(prev =>
+                            prev === 'can' ? 'none' : 'can',
+                          );
+                        }}
+                      >
+                        <Ionicons
+                          name={
+                            beverageType === 'can'
+                              ? 'checkbox'
+                              : 'square-outline'
+                          }
+                          size={18}
+                          color={COLORS.PRIMARY_DARK}
+                        />
+                        <Text style={styles.checkboxLabel}>Can (Rs. 300)</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.beverageTotalRow}>
+                      <Text style={styles.totalLabelSmall}>
+                        Beverage Total:
+                      </Text>
+                      <Text style={styles.totalValueSmall}>
+                        Rs. {formatCurrency(beverageTotal)}
+                      </Text>
+                    </View>
                   </View>
                 </>
               )}
 
-              <View style={[styles.advanceInputRow, { marginTop: 10 }]}>
-                <Text style={styles.totalLabelSmall}>Remaining Balance:</Text>
-                <Text style={styles.totalValueSmall}>
-                  Rs. {formatCurrency(remainingBalance)}
+              {/* ✅ FIXED: Services Table for F+S */}
+              {serviceType === 'F+S' && (
+                <TableComponent
+                  rows={servicesRows}
+                  setRows={setServicesRows}
+                  title="Services Details"
+                  tableName="services"
+                  ownerAmount={servicesOwnerAmount}
+                  onOwnerAmountChange={setServicesOwnerAmount}
+                  manualTotal={manualServicesTotal}
+                  onManualTotalChange={setManualServicesTotal}
+                  guestsCount={guestsCount}
+                  updateRow={updateRow}
+                  addRow={addRow}
+                  formatCurrency={formatCurrency}
+                  eventData={eventData}
+                />
+              )}
+
+              {/* ✅ FIXED: Decor Table for D and F+D */}
+              {(serviceType === 'D' || serviceType === 'F+D') && (
+                <TableComponent
+                  rows={decRows}
+                  setRows={setDecRows}
+                  title="Decoration Details"
+                  tableName="dec"
+                  ownerAmount={decOwnerAmount}
+                  onOwnerAmountChange={setDecOwnerAmount}
+                  manualTotal={manualDecTotal}
+                  onManualTotalChange={setManualDecTotal}
+                  guestsCount={guestsCount}
+                  updateRow={updateRow}
+                  addRow={addRow}
+                  formatCurrency={formatCurrency}
+                  eventData={eventData}
+                />
+              )}
+
+              {rateMode === 'perhead' && (
+                <View style={[styles.section, { padding: 12 }]}>
+                  <Text style={styles.totalLabel}>Special Instructions</Text>
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    onPress={() => setPerHeadExpanded(v => !v)}
+                  >
+                    <TextInput
+                      style={[
+                        styles.perHeadInfoInput,
+                        perHeadExpanded ? styles.perHeadExpanded : null,
+                      ]}
+                      placeholder="Enter specific per-head menu or notes here..."
+                      placeholderTextColor="#666"
+                      multiline
+                      numberOfLines={perHeadExpanded ? 4 : 1}
+                      value={perHeadInfo}
+                      onChangeText={setPerHeadInfo}
+                      onFocus={() => setPerHeadExpanded(true)}
+                      onBlur={() => setPerHeadExpanded(false)}
+                      blurOnSubmit={false}
+                      keyboardShouldPersistTaps="handled"
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* ✅ NEW: Sub Total Row */}
+              <View style={styles.subTotalRow}>
+                <Text style={styles.subTotalLabel}>Sub Total</Text>
+                <Text style={styles.subTotalValue}>
+                  Rs. {formatCurrency(subTotal)}
                 </Text>
               </View>
+
+              {/* ✅ FIXED: Discount Section - Only Fixed */}
+              <View style={styles.section}>
+                <View style={styles.discountInputRow}>
+                  <Text style={styles.sectionTitle}>Discount</Text>
+                  <TextInput
+                    value={discountAmount}
+                    onChangeText={setDiscountAmount}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="#666"
+                    style={styles.discountInput}
+                    blurOnSubmit={false}
+                    keyboardShouldPersistTaps="handled"
+                  />
+                  <Text style={styles.discountValueText}>
+                    = Rs. {formatCurrency(discountValue)}
+                  </Text>
+                </View>
+              </View>
+
+              {/* ✅ UPDATED: Grand Total Row */}
+              <View style={styles.grandTotalRow}>
+                <Text style={styles.grandLabel}>Grand Total</Text>
+                <Text style={styles.grandValue}>
+                  Rs. {formatCurrency(grandTotal)}
+                </Text>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Advance Payment</Text>
+
+                <View style={styles.advanceRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.advanceOption,
+                      advanceMode === 'cash' && styles.advanceOptionActive,
+                    ]}
+                    onPress={() => setAdvanceMode('cash')}
+                  >
+                    <Text
+                      style={
+                        advanceMode === 'cash'
+                          ? styles.advanceTextActive
+                          : styles.advanceText
+                      }
+                    >
+                      Cash
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.advanceOption,
+                      advanceMode === 'bank' && styles.advanceOptionActive,
+                    ]}
+                    onPress={() => setAdvanceMode('bank')}
+                  >
+                    <Text
+                      style={
+                        advanceMode === 'bank'
+                          ? styles.advanceTextActive
+                          : styles.advanceText
+                      }
+                    >
+                      Bank
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {advanceMode === 'cash' && (
+                  <View style={styles.advanceInputRow}>
+                    <Text style={styles.totalLabelSmall}>Cash Received:</Text>
+                    <TextInput
+                      value={cashReceived}
+                      onChangeText={setCashReceived}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor="#666"
+                      style={styles.advanceInput}
+                      blurOnSubmit={false}
+                      keyboardShouldPersistTaps="handled"
+                    />
+                  </View>
+                )}
+
+                {advanceMode === 'bank' && (
+                  <>
+                    <View style={styles.bankDisplayRow}>
+                      <Text style={styles.bankNameText}>
+                        Selected Bank: {bankSelected}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.input,
+                        { padding: 0, justifyContent: 'center' },
+                      ]}
+                    >
+                      <Picker
+                        selectedValue={bankSelected}
+                        onValueChange={setBankSelected}
+                        dropdownIconColor={COLORS.PRIMARY_DARK}
+                        style={{
+                          color: bankSelected ? COLORS.DARK : '#b0b0b0',
+                          fontSize: 14,
+                        }}
+                      >
+                        <Picker.Item
+                          label="Select Bank"
+                          value=""
+                          color="#b0b0b0"
+                        />
+                        {banks.map(b => (
+                          <Picker.Item
+                            key={b.id}
+                            label={b.bank_account_name}
+                            value={b.id}
+                          />
+                        ))}
+                      </Picker>
+                    </View>
+
+                    <View style={styles.advanceInputRow}>
+                      <Text style={styles.totalLabelSmall}>Amount:</Text>
+                      <TextInput
+                        value={bankAmount}
+                        onChangeText={setBankAmount}
+                        keyboardType="numeric"
+                        placeholder="0"
+                        placeholderTextColor="#666"
+                        style={styles.advanceInput}
+                        blurOnSubmit={false}
+                        keyboardShouldPersistTaps="handled"
+                      />
+                    </View>
+                  </>
+                )}
+
+                <View style={[styles.advanceInputRow, { marginTop: 10 }]}>
+                  <Text style={styles.totalLabelSmall}>Remaining Balance:</Text>
+                  <Text style={styles.totalValueSmall}>
+                    Rs. {formatCurrency(remainingBalance)}
+                  </Text>
+                </View>
+              </View>
+            </>
+          ) : (
+            <View style={styles.section}>
+              <Text style={styles.modeNoteText}>
+                Please select Per Head or Per KG and Service Type to view/fill
+                quotation details.
+              </Text>
             </View>
-          </>
-        ) : (
-          <View style={styles.section}>
-            <Text style={styles.modeNoteText}>
-              Please select Per Head or Per KG and Service Type to view/fill
-              quotation details.
-            </Text>
-          </View>
-        )}
+          )}
 
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>Save Quotation</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+            <Text style={styles.saveBtnText}>Save Quotation</Text>
+          </TouchableOpacity>
 
-        <View style={{ height: 50 }} />
-      </ScrollView>
+          <View style={{ height: 50 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal transparent visible={loading} animationType="fade">
         <View

@@ -105,7 +105,6 @@ export const generatePDFFile = async (event, eventDetails) => {
 
   // ✅ Use imported colors
   const primaryColor = hexToRgb(COLORS.PRIMARY);
-  const accentColor = hexToRgb(COLORS.ACCENT);
   const darkColor = hexToRgb(COLORS.PRIMARY_DARK);
 
   let y = height - 50;
@@ -128,7 +127,7 @@ export const generatePDFFile = async (event, eventDetails) => {
   const addSpace = (space = 14) => (y -= space);
 
   // --- Header ---
-  drawText('CATERING SERVICES', 50, y, 20, true, primaryColor);
+  drawText('CND SERVICES', 50, y, 20, true, primaryColor);
   addSpace(25);
   drawText('QUOTATION', 50, y, 16, true, primaryColor);
   addSpace(20);
@@ -294,12 +293,7 @@ export const generatePDFFile = async (event, eventDetails) => {
     9,
   );
   addSpace(12);
-  drawText(
-    '• 50% advance payment is required for confirmation.',
-    55,
-    y,
-    9,
-  );
+  drawText('• 50% advance payment is required for confirmation.', 55, y, 9);
   addSpace(12);
   drawText(
     '• Cancellation must be notified 72 hours before the event.',
@@ -318,7 +312,8 @@ export const generatePDFFile = async (event, eventDetails) => {
   addSpace(25);
 
   // Center align "This is a computer-generated document; no signature is required."
-  const signatureText = 'This is a computer-generated document; no signature is required.';
+  const signatureText =
+    'This is a computer-generated document; no signature is required.';
   const signatureWidth = font.widthOfTextAtSize(signatureText, 9);
   const signatureX = (width - signatureWidth) / 2;
   drawText(signatureText, signatureX, y, 9, false, rgb(0.5, 0.5, 0.5));
