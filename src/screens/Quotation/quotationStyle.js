@@ -477,6 +477,95 @@ const styles = StyleSheet.create({
   amountText: {
     fontWeight: '600',
     color: COLORS.PRIMARY_DARK,
-  },
+  },// SIMPLE Salesman Dropdown Styles
+salesmanModalContainer: {
+  backgroundColor: 'white',
+  borderRadius: 8,
+  padding: 15,
+  maxHeight: 400,
+},
+salesmanSearchContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: '#ddd',
+  borderRadius: 6,
+  paddingHorizontal: 10,
+  paddingVertical: 8,
+  marginBottom: 10,
+},
+salesmanSearchInput: {
+  flex: 1,
+  marginLeft: 8,
+  fontSize: 14,
+  color: COLORS.DARK,
+},
+salesmanList: {
+  maxHeight: 300,
+},
+salesmanItem: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  paddingVertical: 12,
+  paddingHorizontal: 8,
+  borderBottomWidth: 1,
+  borderBottomColor: '#f0f0f0',
+},
+salesmanItemSelected: {
+  backgroundColor: '#f8f9fa',
+},
+salesmanName: {
+  fontSize: 14,
+  fontWeight: '500',
+  color: COLORS.DARK,
+  flex: 1,
+},
+salesmanPhone: {
+  fontSize: 12,
+  color: '#666',
+  marginRight: 10,
+},
+noSalesmanText: {
+  textAlign: 'center',
+  color: '#666',
+  fontStyle: 'italic',
+  padding: 20,
+},
+closeModalButton: {
+  backgroundColor: COLORS.ACCENT,
+  padding: 12,
+  borderRadius: 6,
+  alignItems: 'center',
+  marginTop: 10,
+},
+closeModalText: {
+  color: 'white',
+  fontWeight: 'bold',
+  fontSize: 14,
+},
+modalOverlay: {
+  flex: 1,
+  backgroundColor: 'rgba(0,0,0,0.5)',
+  justifyContent: 'center',
+  padding: 20,
+},
+modalContent: {
+  backgroundColor: 'white',
+  borderRadius: 8,
+  padding: 15,
+  maxHeight: '80%',
+},
+fullWidthInput: {
+  width: '100%',
+  borderWidth: 1,
+  borderColor: '#ddd',
+  borderRadius: 8,
+  paddingHorizontal: 12,
+  paddingVertical: 12,
+  fontSize: 14,
+  color: COLORS.DARK,
+  backgroundColor: COLORS.WHITE,
+},
 });
 export default styles;

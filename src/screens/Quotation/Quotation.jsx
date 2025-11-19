@@ -41,150 +41,169 @@ const makeDefaultRows = (startId = 1) =>
   }));
 
 // ✅ FIXED: TableRow component with HFScreen-like keyboard behavior
-const TableRow = memo(({ item, index, onUpdateCell, isEditMode, guestsCount }) => {
-  const [menu, setMenu] = useState(item.menu);
-  const [qty, setQty] = useState(item.qty);
-  const [rate, setRate] = useState(item.rate);
-  const [total, setTotal] = useState(item.total);
-  
-  // ✅ REAL-TIME: Direct parent update WITHOUT blur - HFScreen style
-  const updateParent = useCallback((field, value, markManual = false) => {
-    onUpdateCell(item.id, field, value, markManual);
-  }, [onUpdateCell, item.id]);
+const TableRow = memo(
+  ({ item, index, onUpdateCell, isEditMode, guestsCount }) => {
+    const [menu, setMenu] = useState(item.menu);
+    const [qty, setQty] = useState(item.qty);
+    const [rate, setRate] = useState(item.rate);
+    const [total, setTotal] = useState(item.total);
 
-  // ✅ REAL-TIME: Menu change - No keyboard dismissal
-  const handleMenuChange = useCallback((text) => {
-    setMenu(text);
-    updateParent('menu', text);
-  }, [updateParent]);
+    // ✅ REAL-TIME: Direct parent update WITHOUT blur - HFScreen style
+    const updateParent = useCallback(
+      (field, value, markManual = false) => {
+        onUpdateCell(item.id, field, value, markManual);
+      },
+      [onUpdateCell, item.id],
+    );
 
-  // ✅ REAL-TIME: Qty change with auto calculation - No keyboard dismissal
-  const handleQtyChange = useCallback((text) => {
-    setQty(text);
-    updateParent('qty', text);
+    // ✅ REAL-TIME: Menu change - No keyboard dismissal
+    const handleMenuChange = useCallback(
+      text => {
+        setMenu(text);
+        updateParent('menu', text);
+      },
+      [updateParent],
+    );
 
-    // Auto calculate total
-    if (!item.manualTotal) {
-      const qtyNum = parseFloat(text || 0);
-      const rateNum = parseFloat(rate || 0);
-      const calculatedTotal = qtyNum * rateNum;
+    // ✅ REAL-TIME: Qty change with auto calculation - No keyboard dismissal
+    const handleQtyChange = useCallback(
+      text => {
+        setQty(text);
+        updateParent('qty', text);
 
-      if (!isNaN(calculatedTotal)) {
-        const formattedTotal = calculatedTotal % 1 === 0 
-          ? calculatedTotal.toString() 
-          : calculatedTotal.toFixed(2);
-        
-        if (formattedTotal !== total) {
-          setTotal(formattedTotal);
-          updateParent('total', formattedTotal);
+        // Auto calculate total
+        if (!item.manualTotal) {
+          const qtyNum = parseFloat(text || 0);
+          const rateNum = parseFloat(rate || 0);
+          const calculatedTotal = qtyNum * rateNum;
+
+          if (!isNaN(calculatedTotal)) {
+            const formattedTotal =
+              calculatedTotal % 1 === 0
+                ? calculatedTotal.toString()
+                : calculatedTotal.toFixed(2);
+
+            if (formattedTotal !== total) {
+              setTotal(formattedTotal);
+              updateParent('total', formattedTotal);
+            }
+          } else if (text === '' && total !== '') {
+            setTotal('');
+            updateParent('total', '');
+          }
         }
-      } else if (text === '' && total !== '') {
-        setTotal('');
-        updateParent('total', '');
-      }
-    }
-  }, [updateParent, item.manualTotal, rate, total]);
+      },
+      [updateParent, item.manualTotal, rate, total],
+    );
 
-  // ✅ REAL-TIME: Rate change with auto calculation - No keyboard dismissal
-  const handleRateChange = useCallback((text) => {
-    setRate(text);
-    updateParent('rate', text);
+    // ✅ REAL-TIME: Rate change with auto calculation - No keyboard dismissal
+    const handleRateChange = useCallback(
+      text => {
+        setRate(text);
+        updateParent('rate', text);
 
-    // Auto calculate total
-    if (!item.manualTotal) {
-      const qtyNum = parseFloat(qty || 0);
-      const rateNum = parseFloat(text || 0);
-      const calculatedTotal = qtyNum * rateNum;
+        // Auto calculate total
+        if (!item.manualTotal) {
+          const qtyNum = parseFloat(qty || 0);
+          const rateNum = parseFloat(text || 0);
+          const calculatedTotal = qtyNum * rateNum;
 
-      if (!isNaN(calculatedTotal)) {
-        const formattedTotal = calculatedTotal % 1 === 0 
-          ? calculatedTotal.toString() 
-          : calculatedTotal.toFixed(2);
-        
-        if (formattedTotal !== total) {
-          setTotal(formattedTotal);
-          updateParent('total', formattedTotal);
+          if (!isNaN(calculatedTotal)) {
+            const formattedTotal =
+              calculatedTotal % 1 === 0
+                ? calculatedTotal.toString()
+                : calculatedTotal.toFixed(2);
+
+            if (formattedTotal !== total) {
+              setTotal(formattedTotal);
+              updateParent('total', formattedTotal);
+            }
+          } else if (text === '' && total !== '') {
+            setTotal('');
+            updateParent('total', '');
+          }
         }
-      } else if (text === '' && total !== '') {
-        setTotal('');
-        updateParent('total', '');
-      }
-    }
-  }, [updateParent, item.manualTotal, qty, total]);
+      },
+      [updateParent, item.manualTotal, qty, total],
+    );
 
-  // ✅ REAL-TIME: Total change (manual entry) - No keyboard dismissal
-  const handleTotalChange = useCallback((text) => {
-    setTotal(text);
-    updateParent('total', text, true);
-  }, [updateParent]);
+    // ✅ REAL-TIME: Total change (manual entry) - No keyboard dismissal
+    const handleTotalChange = useCallback(
+      text => {
+        setTotal(text);
+        updateParent('total', text, true);
+      },
+      [updateParent],
+    );
 
-  // ✅ Sync with parent data changes
-  useEffect(() => {
-    setMenu(item.menu);
-    setQty(item.qty);
-    setRate(item.rate);
-    setTotal(item.total);
-  }, [item.menu, item.qty, item.rate, item.total]);
+    // ✅ Sync with parent data changes
+    useEffect(() => {
+      setMenu(item.menu);
+      setQty(item.qty);
+      setRate(item.rate);
+      setTotal(item.total);
+    }, [item.menu, item.qty, item.rate, item.total]);
 
-  return (
-    <View style={styles.row}>
-      <View style={[styles.cell, { flex: 0.1 }]}>
-        <Text style={styles.cellText}>{index + 1}</Text>
+    return (
+      <View style={styles.row}>
+        <View style={[styles.cell, { flex: 0.1 }]}>
+          <Text style={styles.cellText}>{index + 1}</Text>
+        </View>
+
+        {/* Menu */}
+        <View style={[styles.cell, { flex: 0.45 }]}>
+          <TextInput
+            style={styles.cellInput}
+            value={menu}
+            onChangeText={handleMenuChange}
+            blurOnSubmit={false} // ✅ Important: Keyboard band na ho
+            returnKeyType="next"
+            keyboardShouldPersistTaps="handled" // ✅ Important
+          />
+        </View>
+
+        {/* Qty */}
+        <View style={[styles.cell, { flex: 0.1 }]}>
+          <TextInput
+            style={styles.cellInput}
+            value={qty}
+            keyboardType="decimal-pad"
+            onChangeText={handleQtyChange}
+            blurOnSubmit={false} // ✅ Important: Keyboard band na ho
+            returnKeyType="next"
+            keyboardShouldPersistTaps="handled" // ✅ Important
+          />
+        </View>
+
+        {/* Rate */}
+        <View style={[styles.cell, { flex: 0.15 }]}>
+          <TextInput
+            style={styles.cellInput}
+            value={rate}
+            keyboardType="decimal-pad"
+            onChangeText={handleRateChange}
+            blurOnSubmit={false} // ✅ Important: Keyboard band na ho
+            returnKeyType="next"
+            keyboardShouldPersistTaps="handled" // ✅ Important
+          />
+        </View>
+
+        {/* Total */}
+        <View style={[styles.cell, { flex: 0.2 }]}>
+          <TextInput
+            style={styles.cellInput}
+            value={total}
+            keyboardType="decimal-pad"
+            onChangeText={handleTotalChange}
+            blurOnSubmit={false} // ✅ Important: Keyboard band na ho
+            returnKeyType="done"
+            keyboardShouldPersistTaps="handled" // ✅ Important
+          />
+        </View>
       </View>
-
-      {/* Menu */}
-      <View style={[styles.cell, { flex: 0.45 }]}>
-        <TextInput
-          style={styles.cellInput}
-          value={menu}
-          onChangeText={handleMenuChange}
-          blurOnSubmit={false} // ✅ Important: Keyboard band na ho
-          returnKeyType="next"
-          keyboardShouldPersistTaps="handled" // ✅ Important
-        />
-      </View>
-
-      {/* Qty */}
-      <View style={[styles.cell, { flex: 0.1 }]}>
-        <TextInput
-          style={styles.cellInput}
-          value={qty}
-          keyboardType="decimal-pad"
-          onChangeText={handleQtyChange}
-          blurOnSubmit={false} // ✅ Important: Keyboard band na ho
-          returnKeyType="next"
-          keyboardShouldPersistTaps="handled" // ✅ Important
-        />
-      </View>
-
-      {/* Rate */}
-      <View style={[styles.cell, { flex: 0.15 }]}>
-        <TextInput
-          style={styles.cellInput}
-          value={rate}
-          keyboardType="decimal-pad"
-          onChangeText={handleRateChange}
-          blurOnSubmit={false} // ✅ Important: Keyboard band na ho
-          returnKeyType="next"
-          keyboardShouldPersistTaps="handled" // ✅ Important
-        />
-      </View>
-
-      {/* Total */}
-      <View style={[styles.cell, { flex: 0.2 }]}>
-        <TextInput
-          style={styles.cellInput}
-          value={total}
-          keyboardType="decimal-pad"
-          onChangeText={handleTotalChange}
-          blurOnSubmit={false} // ✅ Important: Keyboard band na ho
-          returnKeyType="done"
-          keyboardShouldPersistTaps="handled" // ✅ Important
-        />
-      </View>
-    </View>
-  );
-});
+    );
+  },
+);
 
 // ✅ FIXED: Radio Button Component
 const RadioButtonColumn = memo(({ label, selected, onPress, isRateMode }) => {
@@ -256,110 +275,184 @@ const OwnerAmountInput = memo(({ value, onChange, tableName }) => {
 });
 
 // ✅ FIXED: TableComponent with proper props
-const TableComponent = memo(({
-  rows,
-  setRows,
-  title,
-  tableName,
-  ownerAmount,
-  onOwnerAmountChange,
-  manualTotal,
-  onManualTotalChange,
-  guestsCount,
-  updateRow,
-  addRow,
-  formatCurrency,
-  eventData
-}) => {
-  const handleUpdateCell = useCallback(
-    (id, key, value, markManual = false) => {
-      updateRow(setRows, id, key, value, markManual);
-    },
-    [setRows, updateRow],
-  );
+const TableComponent = memo(
+  ({
+    rows,
+    setRows,
+    title,
+    tableName,
+    ownerAmount,
+    onOwnerAmountChange,
+    manualTotal,
+    onManualTotalChange,
+    guestsCount,
+    updateRow,
+    addRow,
+    formatCurrency,
+    eventData,
+  }) => {
+    const handleUpdateCell = useCallback(
+      (id, key, value, markManual = false) => {
+        updateRow(setRows, id, key, value, markManual);
+      },
+      [setRows, updateRow],
+    );
 
-  const tableTotal = useMemo(() => {
-    if (manualTotal && manualTotal !== '') {
-      return parseFloat(manualTotal) || 0;
-    }
+    const tableTotal = useMemo(() => {
+      if (manualTotal && manualTotal !== '') {
+        return parseFloat(manualTotal) || 0;
+      }
 
-    const rowsTotal = rows.reduce((acc, row) => {
-      return acc + (parseFloat(row.total || 0) || 0);
-    }, 0);
+      const rowsTotal = rows.reduce((acc, row) => {
+        return acc + (parseFloat(row.total || 0) || 0);
+      }, 0);
 
-    let ownerTotal = 0;
+      let ownerTotal = 0;
 
-    if (tableName === 'food')
-      ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
-    else if (tableName === 'dec')
-      ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
-    else if (tableName === 'services')
-      ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
+      if (tableName === 'food')
+        ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
+      else if (tableName === 'dec')
+        ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
+      else if (tableName === 'services')
+        ownerTotal = (parseFloat(ownerAmount || 0) || 0) * guestsCount;
 
-    return rowsTotal + ownerTotal;
-  }, [rows, manualTotal, ownerAmount, guestsCount, tableName]);
+      return rowsTotal + ownerTotal;
+    }, [rows, manualTotal, ownerAmount, guestsCount, tableName]);
 
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>
-        {title} 
-      </Text>
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{title}</Text>
 
-      <View style={styles.headerRow}>
-        <Text style={[styles.headerCell, { flex: 0.1 }]}>S#</Text>
-        <Text style={[styles.headerCell, { flex: 0.45 }]}>Detail</Text>
-        <Text style={[styles.headerCell, { flex: 0.1 }]}>Qty</Text>
-        <Text style={[styles.headerCell, { flex: 0.15 }]}>Rate</Text>
-        <Text style={[styles.headerCell, { flex: 0.2 }]}>Total</Text>
-      </View>
-
-      {rows.map((item, index) => (
-        <TableRow
-          key={`${tableName}-${item.id}-${index}`}
-          item={item}
-          index={index}
-          onUpdateCell={handleUpdateCell}
-          tableName={tableName}
-          isEditMode={!!eventData?.id}
-          guestsCount={guestsCount}
-        />
-      ))}
-
-      <View style={styles.addAndTotalsRow}>
-        <TouchableOpacity
-          style={styles.smallAddLeft}
-          onPress={() => addRow(rows, setRows)}
-        >
-          <Ionicons name="add" size={18} color={COLORS.WHITE} />
-        </TouchableOpacity>
-
-        <View style={styles.ownerAmountWrap}>
-          <OwnerAmountInput
-            value={ownerAmount}
-            onChange={onOwnerAmountChange}
-            tableName={tableName}
-          />
+        <View style={styles.headerRow}>
+          <Text style={[styles.headerCell, { flex: 0.1 }]}>S#</Text>
+          <Text style={[styles.headerCell, { flex: 0.45 }]}>Detail</Text>
+          <Text style={[styles.headerCell, { flex: 0.1 }]}>Qty</Text>
+          <Text style={[styles.headerCell, { flex: 0.15 }]}>Rate</Text>
+          <Text style={[styles.headerCell, { flex: 0.2 }]}>Total</Text>
         </View>
 
-        <View style={styles.totalInlineRow}>
-          <Text style={styles.totalLabelSmall}>
-            {title.includes('Food')
-              ? 'Food Total'
-              : title.includes('Services')
-              ? 'Services Total'
-              : 'Decor Total'}
-            :
-          </Text>
-          <View style={styles.totalCellSmall}>
-            <Text style={styles.totalValueSmall}>
-              {formatCurrency(tableTotal)}
+        {rows.map((item, index) => (
+          <TableRow
+            key={`${tableName}-${item.id}-${index}`}
+            item={item}
+            index={index}
+            onUpdateCell={handleUpdateCell}
+            tableName={tableName}
+            isEditMode={!!eventData?.id}
+            guestsCount={guestsCount}
+          />
+        ))}
+
+        <View style={styles.addAndTotalsRow}>
+          <TouchableOpacity
+            style={styles.smallAddLeft}
+            onPress={() => addRow(rows, setRows)}
+          >
+            <Ionicons name="add" size={18} color={COLORS.WHITE} />
+          </TouchableOpacity>
+
+          <View style={styles.ownerAmountWrap}>
+            <OwnerAmountInput
+              value={ownerAmount}
+              onChange={onOwnerAmountChange}
+              tableName={tableName}
+            />
+          </View>
+
+          <View style={styles.totalInlineRow}>
+            <Text style={styles.totalLabelSmall}>
+              {title.includes('Food')
+                ? 'Food Total'
+                : title.includes('Services')
+                ? 'Services Total'
+                : 'Decor Total'}
+              :
             </Text>
+            <View style={styles.totalCellSmall}>
+              <Text style={styles.totalValueSmall}>
+                {formatCurrency(tableTotal)}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
-    </View>
-  );
-});
+    );
+  },
+);
+
+// ✅ SIMPLE: Salesman Dropdown Component
+const SalesmanDropdown = memo(
+  ({ salesmen, selectedSalesman, onSelectSalesman, showSalesmanDropdown }) => {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filteredSalesmen, setFilteredSalesmen] = useState(salesmen);
+
+    useEffect(() => {
+      if (searchQuery.trim() === '') {
+        setFilteredSalesmen(salesmen);
+      } else {
+        const filtered = salesmen.filter(salesman =>
+          salesman.salesman_name
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()),
+        );
+        setFilteredSalesmen(filtered);
+      }
+    }, [searchQuery, salesmen]);
+
+    if (!showSalesmanDropdown) return null;
+
+    return (
+      <View style={styles.salesmanModalContainer}>
+        {/* Search Bar */}
+        <View style={styles.salesmanSearchContainer}>
+          <Ionicons name="search" size={18} color="#666" />
+          <TextInput
+            style={styles.salesmanSearchInput}
+            placeholder="Search salesman..."
+            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoFocus={true}
+          />
+        </View>
+
+        {/* Salesman List */}
+        <ScrollView
+          style={styles.salesmanList}
+          showsVerticalScrollIndicator={false}
+        >
+          {filteredSalesmen.length > 0 ? (
+            filteredSalesmen.map(salesman => (
+              <TouchableOpacity
+                key={salesman.salesman_code}
+                style={[
+                  styles.salesmanItem,
+                  selectedSalesman === salesman.salesman_code &&
+                    styles.salesmanItemSelected,
+                ]}
+                onPress={() => {
+                  onSelectSalesman(salesman.salesman_code);
+                }}
+              >
+                <Text style={styles.salesmanName}>
+                  {salesman.salesman_name}
+                </Text>
+                <Text style={styles.salesmanPhone}>
+                  {salesman.salesman_phone}
+                </Text>
+                {selectedSalesman === salesman.salesman_code && (
+                  <Ionicons name="checkmark" size={18} color={COLORS.ACCENT} />
+                )}
+              </TouchableOpacity>
+            ))
+          ) : (
+            <Text style={styles.noSalesmanText}>No salesmen found</Text>
+          )}
+        </ScrollView>
+      </View>
+    );
+  },
+);
 
 const Quotation = ({ navigation }) => {
   const user = useSelector(state => state.Data.currentData);
@@ -381,6 +474,9 @@ const Quotation = ({ navigation }) => {
   const [serviceType, setServiceType] = useState('F');
   const [rateMode, setRateMode] = useState('perhead');
   const [directors, setDirectors] = useState([]);
+  const [salesmen, setSalesmen] = useState([]);
+  const [selectedSalesman, setSelectedSalesman] = useState('');
+  const [showSalesmanDropdown, setShowSalesmanDropdown] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerMode, setDatePickerMode] = useState('date');
   const [tempDate, setTempDate] = useState(new Date());
@@ -401,6 +497,13 @@ const Quotation = ({ navigation }) => {
   const [initialAdvance, setInitialAdvance] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  // ✅ Check if salesman dropdown should be shown
+  const shouldShowSalesmanDropdown = useMemo(() => {
+    if (!user?.role_id) return false;
+    // Show dropdown for all roles EXCEPT role_id 22
+    return user.role_id !== '22';
+  }, [user?.role_id]);
+
   // ✅ Format currency for display
   const formatCurrency = amount => {
     if (!amount && amount !== 0) return '0';
@@ -420,7 +523,7 @@ const Quotation = ({ navigation }) => {
     }
   };
 
-  // ✅ FIXED: Director aur bank data fetch
+  // ✅ FIXED: Director, bank, and salesman data fetch
   useEffect(() => {
     let mounted = true;
 
@@ -442,6 +545,19 @@ const Quotation = ({ navigation }) => {
         const bankJson = await bankRes.json();
         if (mounted && bankJson?.status === 'true')
           setBanks(bankJson.data || []);
+
+        // ✅ NEW: Fetch salesmen
+        if (shouldShowSalesmanDropdown) {
+          const salesmanRes = await fetch(`${api.baseURL}salesman.php`);
+          const salesmanJson = await salesmanRes.json();
+          if (
+            mounted &&
+            salesmanJson?.status === 'true' &&
+            Array.isArray(salesmanJson.data)
+          ) {
+            setSalesmen(salesmanJson.data);
+          }
+        }
       } catch (e) {
         console.log('Data fetch error:', e.message || e);
       }
@@ -449,7 +565,7 @@ const Quotation = ({ navigation }) => {
 
     fetchData();
     return () => (mounted = false);
-  }, []);
+  }, [shouldShowSalesmanDropdown]);
 
   // ✅ FIXED: Special instructions extract karna
   const extractSpecialInstructions = data => {
@@ -706,6 +822,11 @@ const Quotation = ({ navigation }) => {
       } else {
         setAdvanceMode('none');
       }
+
+      // ✅ NEW: Set salesman from event data if available
+      if (eventData.salesman_id) {
+        setSelectedSalesman(String(eventData.salesman_id));
+      }
     } catch (err) {
       console.log('Error fetching event details:', err);
     }
@@ -889,6 +1010,7 @@ const Quotation = ({ navigation }) => {
     setBankSelected('');
     setBankAmount('');
     setInitialAdvance(0);
+    setSelectedSalesman('');
   };
 
   const handleSave = async () => {
@@ -919,6 +1041,12 @@ const Quotation = ({ navigation }) => {
       );
       const directorId = directorObj ? directorObj.combo_code : '0';
       formData.append('director_id', directorId);
+
+      // ✅ NEW: Salesman ID send karo
+      const salesmanIdToSend = shouldShowSalesmanDropdown
+        ? selectedSalesman || '0'
+        : '0';
+      formData.append('salesman', salesmanIdToSend);
 
       formData.append('total', Math.round(grandTotal));
       formData.append('so_advance', Math.round(advancePaid));
@@ -1159,12 +1287,25 @@ const Quotation = ({ navigation }) => {
     }
   };
 
+  // ✅ NEW: Handle salesman selection
+  const handleSelectSalesman = salesmanCode => {
+    setSelectedSalesman(salesmanCode);
+    setShowSalesmanDropdown(false);
+  };
+
+  // ✅ NEW: Get selected salesman name for display
+  const getSelectedSalesmanName = () => {
+    if (!selectedSalesman) return 'Select Salesman';
+    const selected = salesmen.find(s => s.salesman_code === selectedSalesman);
+    return selected ? selected.salesman_name : 'Select Salesman';
+  };
+
   return (
     <View style={styles.screen}>
       <AppHeader title="Quotation" />
-      
+
       {/* ✅ IMPORTANT: KeyboardAvoidingView with proper behavior */}
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
@@ -1271,6 +1412,35 @@ const Quotation = ({ navigation }) => {
                   keyboardShouldPersistTaps="handled"
                 />
               </View>
+
+              {/* ✅ NEW: Salesman Dropdown Row - Full Width */}
+              {shouldShowSalesmanDropdown && (
+                <View style={styles.inputRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.input,
+                      styles.fullWidthInput,
+                      { justifyContent: 'center' },
+                    ]}
+                    onPress={() => setShowSalesmanDropdown(true)}
+                  >
+                    <Text
+                      style={{
+                        color: selectedSalesman ? COLORS.DARK : '#b0b0b0',
+                        fontSize: 14,
+                      }}
+                    >
+                      {getSelectedSalesmanName()}
+                    </Text>
+                    <Ionicons
+                      name="chevron-down"
+                      size={16}
+                      color="#666"
+                      style={{ marginLeft: 8 }}
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
 
             {showDatePicker && (
@@ -1312,6 +1482,32 @@ const Quotation = ({ navigation }) => {
             </View>
           </View>
 
+          {/* ✅ NEW: Salesman Dropdown Modal */}
+          <Modal
+            visible={showSalesmanDropdown}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowSalesmanDropdown(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <SalesmanDropdown
+                  salesmen={salesmen}
+                  selectedSalesman={selectedSalesman}
+                  onSelectSalesman={handleSelectSalesman}
+                  showSalesmanDropdown={showSalesmanDropdown}
+                />
+                <TouchableOpacity
+                  style={styles.closeModalButton}
+                  onPress={() => setShowSalesmanDropdown(false)}
+                >
+                  <Text style={styles.closeModalText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
+          {/* Rest of your existing code remains the same */}
           {/* Tables Section */}
           {rateMode && serviceType ? (
             <>

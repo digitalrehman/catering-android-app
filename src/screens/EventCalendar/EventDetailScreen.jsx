@@ -8,21 +8,23 @@ import {
   Animated,
   StatusBar,
   Image,
-  Alert,
   Linking,
+  ScrollView,
 } from 'react-native';
 
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRoute } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
 import AppHeader from '../../components/AppHeader';
 import COLORS from '../../utils/colors';
+import api from '../../utils/api';
 
 const EventDetailScreen = () => {
   const route = useRoute();
   const { event } = route.params || {};
   console.log('event', event);
-  
+
   const [foodData, setFoodData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,47 +39,49 @@ const EventDetailScreen = () => {
     );
   };
 
-// Fetch food data
-const fetchFoodData = async () => {
-  try {
-    setLoading(true);
-    const formData = new FormData();
-    formData.append('order_no', event.id); // Using event.id as order_no from params
+  // Fetch food data
+  const fetchFoodData = async () => {
+    try {
+      setLoading(true);
+      const formData = new FormData();
+      formData.append('order_no', event.id);
 
-    console.log('Sending order_no:', event.id);
-
-    const response = await fetch(
-      'https://cat.de2solutions.com/mobile_dash/get_event_food_decor_detail.php',
-      {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data',
+      const response = await fetch(
+        `${api.baseURL}get_event_food_decor_detail.php`,
+        {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
         },
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    );
 
-    console.log('API Response status:', response.status);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      if (
+        data.status_food === 'true' ||
+        data.status_beverages === 'true' ||
+        data.status_decoration === 'true'
+      ) {
+        setFoodData(data);
+      } else {
+        setFoodData(null);
+      }
+    } catch (error) {
+      console.error('Error fetching food data:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to fetch food items data',
+      });
+    } finally {
+      setLoading(false);
     }
-
-    const data = await response.json();
-    console.log('Food API Response:', data);
-    
-    if (data.status_food === 'true' || data.status_beverages === 'true' || data.status_decoration === 'true') {
-      setFoodData(data);
-    } else {
-      setFoodData(null);
-    }
-  } catch (error) {
-    console.error('Error fetching food data:', error);
-    Alert.alert('Error', `Failed to fetch food items data: ${error.message}`);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -120,14 +124,43 @@ const fetchFoodData = async () => {
   const remaining = total - advance;
 
   const handleConfirm = () => {
-    Alert.alert('Confirmed', `${event.name} has been confirmed.`);
+    Toast.show({
+      type: 'success',
+      text1: 'Confirmed',
+      text2: `${event.name} has been confirmed.`,
+    });
   };
 
   const handleTentative = () => {
-    Alert.alert('Tentative', `${event.name} set as tentative.`);
+    Toast.show({
+      type: 'info',
+      text1: 'Tentative',
+      text2: `${event.name} set as tentative.`,
+    });
   };
 
-  // Render food items
+  // Table row component
+  const TableRow = ({ detail, qty, rate, isHeader = false }) => (
+    <View style={[styles.tableRow, isHeader && styles.tableHeader]}>
+      <View style={[styles.tableCell, styles.detailCell]}>
+        <Text style={[styles.tableCellText, isHeader && styles.tableHeaderText]}>
+          {detail}
+        </Text>
+      </View>
+      <View style={[styles.tableCell, styles.qtyCell]}>
+        <Text style={[styles.tableCellText, isHeader && styles.tableHeaderText]}>
+          {qty}
+        </Text>
+      </View>
+      <View style={[styles.tableCell, styles.rateCell]}>
+        <Text style={[styles.tableCellText, isHeader && styles.tableHeaderText]}>
+          {rate}
+        </Text>
+      </View>
+    </View>
+  );
+
+  // Render food items in table format
   const renderFoodItems = () => {
     if (loading) {
       return (
@@ -147,75 +180,97 @@ const fetchFoodData = async () => {
       );
     }
 
+    const allItems = [
+      ...(foodData.data_food || []).map(item => ({ ...item, type: 'Food' })),
+      ...(foodData.data_beverages || []).map(item => ({ ...item, type: 'Beverages' })),
+      ...(foodData.data_decoration || []).map(item => ({ ...item, type: 'Decoration' }))
+    ];
+
     return (
       <View style={styles.foodSection}>
         <Text style={styles.sectionTitle}>Food Items</Text>
 
+        {/* Table Header */}
+        <TableRow 
+          detail="Detail" 
+          qty="Qty" 
+          rate="Rate" 
+          isHeader={true} 
+        />
+
         {/* Food Items */}
-        {foodData.status_food === 'true' && foodData.data_food && foodData.data_food.length > 0 && (
-          <View style={styles.foodCategory}>
-            <Text style={styles.categoryTitle}>Food</Text>
-            {foodData.data_food.map((item, index) => (
-              <View key={item.id || index} style={styles.foodItem}>
-                <View style={styles.foodItemHeader}>
-                  <Text style={styles.foodDescription}>{item.description}</Text>
-                  <Text style={styles.foodPrice}>Rs. {parseFloat(item.unit_price || 0).toLocaleString()}</Text>
-                </View>
-                <View style={styles.foodDetails}>
-                  <Text style={styles.foodDetailText}>Stock Code: {item.stk_code}</Text>
-                  <Text style={styles.foodDetailText}>Quantity: {item.quantity}</Text>
-                  <Text style={styles.foodDetailText}>Delivered: {item.delivered_qty}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
+        {foodData.status_food === 'true' &&
+          foodData.data_food &&
+          foodData.data_food.length > 0 && (
+            <View style={styles.foodCategory}>
+              <Text style={styles.categoryTitle}>Food</Text>
+              {foodData.data_food.map((item, index) => (
+                <TableRow
+                  key={item.id || index}
+                  detail={item.description}
+                  qty={item.quantity}
+                  rate={`Rs. ${parseFloat(item.unit_price || 0).toLocaleString()}`}
+                />
+              ))}
+            </View>
+          )}
 
         {/* Beverages */}
-        {foodData.status_beverages === 'true' && foodData.data_beverages && foodData.data_beverages.length > 0 && (
-          <View style={styles.foodCategory}>
-            <Text style={styles.categoryTitle}>Beverages</Text>
-            {foodData.data_beverages.map((item, index) => (
-              <View key={item.id || index} style={styles.foodItem}>
-                <View style={styles.foodItemHeader}>
-                  <Text style={styles.foodDescription}>{item.description}</Text>
-                  <Text style={styles.foodPrice}>Rs. {parseFloat(item.unit_price || 0).toLocaleString()}</Text>
-                </View>
-                <View style={styles.foodDetails}>
-                  <Text style={styles.foodDetailText}>Stock Code: {item.stk_code}</Text>
-                  <Text style={styles.foodDetailText}>Quantity: {item.quantity}</Text>
-                  <Text style={styles.foodDetailText}>Delivered: {item.delivered_qty}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
+        {foodData.status_beverages === 'true' &&
+          foodData.data_beverages &&
+          foodData.data_beverages.length > 0 && (
+            <View style={styles.foodCategory}>
+              <Text style={styles.categoryTitle}>Beverages</Text>
+              {foodData.data_beverages.map((item, index) => (
+                <TableRow
+                  key={item.id || index}
+                  detail={item.description}
+                  qty={item.quantity}
+                  rate={`Rs. ${parseFloat(item.unit_price || 0).toLocaleString()}`}
+                />
+              ))}
+            </View>
+          )}
 
         {/* Decorations */}
-        {foodData.status_decoration === 'true' && foodData.data_decoration && foodData.data_decoration.length > 0 && (
-          <View style={styles.foodCategory}>
-            <Text style={styles.categoryTitle}>Decorations</Text>
-            {foodData.data_decoration.map((item, index) => (
-              <View key={item.id || index} style={styles.foodItem}>
-                <View style={styles.foodItemHeader}>
-                  <Text style={styles.foodDescription}>{item.description}</Text>
-                  <Text style={styles.foodPrice}>Rs. {parseFloat(item.unit_price || 0).toLocaleString()}</Text>
-                </View>
-                <View style={styles.foodDetails}>
-                  <Text style={styles.foodDetailText}>Stock Code: {item.stk_code}</Text>
-                  <Text style={styles.foodDetailText}>Quantity: {item.quantity}</Text>
-                  <Text style={styles.foodDetailText}>Delivered: {item.delivered_qty}</Text>
-                </View>
-              </View>
-            ))}
+        {foodData.status_decoration === 'true' &&
+          foodData.data_decoration &&
+          foodData.data_decoration.length > 0 && (
+            <View style={styles.foodCategory}>
+              <Text style={styles.categoryTitle}>Decorations</Text>
+              {foodData.data_decoration.map((item, index) => (
+                <TableRow
+                  key={item.id || index}
+                  detail={item.description}
+                  qty={item.quantity}
+                  rate={`Rs. ${parseFloat(item.unit_price || 0).toLocaleString()}`}
+                />
+              ))}
+            </View>
+          )}
+
+        {/* No items message */}
+        {allItems.length === 0 && (
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataText}>No food items available</Text>
           </View>
         )}
 
-        {/* No items message */}
-        {(!foodData.data_food || foodData.data_food.length === 0) &&
-         (!foodData.data_beverages || foodData.data_beverages.length === 0) &&
-         (!foodData.data_decoration || foodData.data_decoration.length === 0) && (
-          <Text style={styles.noDataText}>No food items available</Text>
+        {/* Summary Section */}
+        {allItems.length > 0 && (
+          <View style={styles.summarySection}>
+            <Text style={styles.summaryTitle}>Summary</Text>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total Items:</Text>
+              <Text style={styles.summaryValue}>{allItems.length}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total Quantity:</Text>
+              <Text style={styles.summaryValue}>
+                {allItems.reduce((sum, item) => sum + parseInt(item.quantity || 0), 0)}
+              </Text>
+            </View>
+          </View>
         )}
       </View>
     );
@@ -384,6 +439,9 @@ const fetchFoodData = async () => {
           </View>
         </View>
       </Animated.ScrollView>
+
+      {/* Toast Component */}
+      <Toast />
     </LinearGradient>
   );
 };
@@ -525,9 +583,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginLeft: 8,
   },
-  // Food Items Styles
+  // Food Items Table Styles
   foodCategory: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   categoryTitle: {
     color: COLORS.WHITE,
@@ -538,51 +596,87 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.2)',
   },
-  foodItem: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  foodItemHeader: {
+  tableRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    paddingVertical: 12,
   },
-  foodDescription: {
+  tableHeader: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: COLORS.ACCENT,
+  },
+  tableCell: {
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+  },
+  detailCell: {
+    flex: 3,
+  },
+  qtyCell: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  rateCell: {
+    flex: 2,
+    alignItems: 'flex-end',
+  },
+  tableCellText: {
     color: COLORS.WHITE,
     fontSize: 14,
     fontWeight: '600',
-    flex: 1,
-    marginRight: 12,
   },
-  foodPrice: {
+  tableHeaderText: {
     color: COLORS.ACCENT,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  foodDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-  },
-  foodDetailText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    marginRight: 12,
-    marginBottom: 4,
+    fontWeight: '800',
+    fontSize: 15,
   },
   loadingText: {
     color: COLORS.ACCENT,
     fontSize: 14,
     textAlign: 'center',
     fontStyle: 'italic',
+    paddingVertical: 20,
   },
   noDataText: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: 14,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  noDataContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  // Summary Section
+  summarySection: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.2)',
+  },
+  summaryTitle: {
+    color: COLORS.ACCENT,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  summaryValue: {
+    color: COLORS.WHITE,
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
