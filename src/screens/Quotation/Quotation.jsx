@@ -458,6 +458,7 @@ const Quotation = ({ navigation }) => {
   const user = useSelector(state => state.Data.currentData);
   const route = useRoute();
   const { eventData } = route.params || {};
+  console.log(eventData);
 
   const [clientInfo, setClientInfo] = useState({
     contactNo: '',
@@ -611,6 +612,7 @@ const Quotation = ({ navigation }) => {
     return specialInstructions;
   };
 
+  // ✅ FIXED: Better event details fetching with special instructions
   // ✅ FIXED: Better event details fetching with special instructions
   const fetchEventDetails = async () => {
     try {
@@ -823,9 +825,19 @@ const Quotation = ({ navigation }) => {
         setAdvanceMode('none');
       }
 
-      // ✅ NEW: Set salesman from event data if available
-      if (eventData.salesman_id) {
-        setSelectedSalesman(String(eventData.salesman_id));
+      // Pehle eventData se salesman_id check karo
+      let salesmanIdFromEvent =
+        eventData.salesman_id ||
+        eventData?.originalData?.salesman_id ||
+        eventData?.originalData?.salesman;
+
+      // Agar nahi mila toh data response se check karo
+      if (!salesmanIdFromEvent && data?.salesman_id) {
+        salesmanIdFromEvent = data.salesman_id;
+      }
+
+      if (salesmanIdFromEvent && salesmanIdFromEvent !== '0') {
+        setSelectedSalesman(String(salesmanIdFromEvent));
       }
     } catch (err) {
       console.log('Error fetching event details:', err);
